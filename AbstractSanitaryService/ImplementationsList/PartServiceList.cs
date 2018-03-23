@@ -4,6 +4,7 @@ using AbstractSanitaryService.Interfaces;
 using AbstractSanitaryService.ViewModels;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace AbstractSanitaryService.ImplementationsList
 {
@@ -18,48 +19,38 @@ namespace AbstractSanitaryService.ImplementationsList
 
         public List<PartViewModel> GetList()
         {
-            List<PartViewModel> result = new List<PartViewModel>();
-            for (int i = 0; i < source.Parts.Count; ++i)
-            {
-                result.Add(new PartViewModel
+            List<PartViewModel> result = source.Parts
+                .Select(rec => new PartViewModel
                 {
-                    Id = source.Parts[i].Id,
-                    PartName = source.Parts[i].PartName
-                });
-            }
+                    Id = rec.Id,
+                    PartName = rec.PartName
+                })
+                .ToList();
             return result;
         }
 
         public PartViewModel GetElement(int id)
         {
-            for (int i = 0; i < source.Parts.Count; ++i)
+            Part element = source.Parts.FirstOrDefault(rec => rec.Id == id);
+            if (element != null)
             {
-                if (source.Parts[i].Id == id)
+                return new PartViewModel
                 {
-                    return new PartViewModel
-                    {
-                        Id = source.Parts[i].Id,
-                        PartName = source.Parts[i].PartName
-                    };
-                }
+                    Id = element.Id,
+                    PartName = element.PartName
+                };
             }
             throw new Exception("Элемент не найден");
         }
 
         public void AddElement(PartBindingModel model)
         {
-            int maxId = 0;
-            for (int i = 0; i < source.Parts.Count; ++i)
+            Part element = source.Parts.FirstOrDefault(rec => rec.PartName == model.PartName);
+            if (element != null)
             {
-                if (source.Parts[i].Id > maxId)
-                {
-                    maxId = source.Parts[i].Id;
-                }
-                if (source.Parts[i].PartName == model.PartName)
-                {
-                    throw new Exception("Уже есть компонент с таким названием");
-                }
+                throw new Exception("Уже есть запчасть с таким названием");
             }
+            int maxId = source.Parts.Count > 0 ? source.Parts.Max(rec => rec.Id) : 0;
             source.Parts.Add(new Part
             {
                 Id = maxId + 1,
@@ -69,37 +60,31 @@ namespace AbstractSanitaryService.ImplementationsList
 
         public void UpdElement(PartBindingModel model)
         {
-            int index = -1;
-            for (int i = 0; i < source.Parts.Count; ++i)
+            Part element = source.Parts.FirstOrDefault(rec =>
+                                        rec.PartName == model.PartName && rec.Id != model.Id);
+            if (element != null)
             {
-                if (source.Parts[i].Id == model.Id)
-                {
-                    index = i;
-                }
-                if (source.Parts[i].PartName == model.PartName &&
-                    source.Parts[i].Id != model.Id)
-                {
-                    throw new Exception("Уже есть компонент с таким названием");
-                }
+                throw new Exception("Уже есть запчасть с таким названием");
             }
-            if (index == -1)
+            element = source.Parts.FirstOrDefault(rec => rec.Id == model.Id);
+            if (element == null)
             {
                 throw new Exception("Элемент не найден");
             }
-            source.Parts[index].PartName = model.PartName;
+            element.PartName = model.PartName;
         }
 
         public void DelElement(int id)
         {
-            for (int i = 0; i < source.Parts.Count; ++i)
+            Part element = source.Parts.FirstOrDefault(rec => rec.Id == id);
+            if (element != null)
             {
-                if (source.Parts[i].Id == id)
-                {
-                    source.Parts.RemoveAt(i);
-                    return;
-                }
+                source.Parts.Remove(element);
             }
-            throw new Exception("Элемент не найден");
+            else
+            {
+                throw new Exception("Элемент не найден");
+            }
         }
     }
 }

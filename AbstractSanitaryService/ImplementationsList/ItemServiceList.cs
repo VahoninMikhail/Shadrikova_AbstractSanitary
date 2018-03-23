@@ -4,6 +4,7 @@ using AbstractSanitaryService.Interfaces;
 using AbstractSanitaryService.ViewModels;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace AbstractSanitaryService.ImplementationsList
 {
@@ -18,247 +19,161 @@ namespace AbstractSanitaryService.ImplementationsList
 
         public List<ItemViewModel> GetList()
         {
-            List<ItemViewModel> result = new List<ItemViewModel>();
-            for (int i = 0; i < source.Items.Count; ++i)
-            {
-                // требуется дополнительно получить список компонентов для изделия и их количество
-                List<ItemPartViewModel> itemParts = new List<ItemPartViewModel>();
-                for (int j = 0; j < source.ItemParts.Count; ++j)
+            List<ItemViewModel> result = source.Items
+                .Select(rec => new ItemViewModel
                 {
-                    if (source.ItemParts[j].ItemId == source.Items[i].Id)
-                    {
-                        string partName = string.Empty;
-                        for (int k = 0; k < source.Parts.Count; ++k)
-                        {
-                            if (source.ItemParts[j].PartId == source.Parts[k].Id)
+                    Id = rec.Id,
+                    ItemName = rec.ItemName,
+                    Price = rec.Price,
+                    ItemParts = source.ItemParts
+                            .Where(recIP => recIP.ItemId == rec.Id)
+                            .Select(recIP => new ItemPartViewModel
                             {
-                                partName = source.Parts[k].PartName;
-                                break;
-                            }
-                        }
-                        itemParts.Add(new ItemPartViewModel
-                        {
-                            Id = source.ItemParts[j].Id,
-                            ItemId = source.ItemParts[j].ItemId,
-                            PartId = source.ItemParts[j].PartId,
-                            PartName = partName,
-                            Count = source.ItemParts[j].Count
-                        });
-                    }
-                }
-                result.Add(new ItemViewModel
-                {
-                    Id = source.Items[i].Id,
-                    ItemName = source.Items[i].ItemName,
-                    Price = source.Items[i].Price,
-                    ItemParts = itemParts
-                });
-            }
+                                Id = recIP.Id,
+                                ItemId = recIP.ItemId,
+                                PartId = recIP.PartId,
+                                PartName = source.Parts
+                                    .FirstOrDefault(recP => recP.Id == recIP.PartId)?.PartName,
+                                Count = recIP.Count
+                            })
+                            .ToList()
+                })
+                .ToList();
             return result;
         }
 
         public ItemViewModel GetElement(int id)
         {
-            for (int i = 0; i < source.Items.Count; ++i)
+            Item element = source.Items.FirstOrDefault(rec => rec.Id == id);
+            if (element != null)
             {
-                // требуется дополнительно получить список компонентов для изделия и их количество
-                List<ItemPartViewModel> itemParts = new List<ItemPartViewModel>();
-                for (int j = 0; j < source.ItemParts.Count; ++j)
+                return new ItemViewModel
                 {
-                    if (source.ItemParts[j].ItemId == source.Items[i].Id)
-                    {
-                        string partName = string.Empty;
-                        for (int k = 0; k < source.Parts.Count; ++k)
-                        {
-                            if (source.ItemParts[j].PartId == source.Parts[k].Id)
+                    Id = element.Id,
+                    ItemName = element.ItemName,
+                    Price = element.Price,
+                    ItemParts = source.ItemParts
+                            .Where(recIP => recIP.ItemId == element.Id)
+                            .Select(recIP => new ItemPartViewModel
                             {
-                                partName = source.Parts[k].PartName;
-                                break;
-                            }
-                        }
-                        itemParts.Add(new ItemPartViewModel
-                        {
-                            Id = source.ItemParts[j].Id,
-                            ItemId = source.ItemParts[j].ItemId,
-                            PartId = source.ItemParts[j].PartId,
-                            PartName = partName,
-                            Count = source.ItemParts[j].Count
-                        });
-                    }
-                }
-                if (source.Items[i].Id == id)
-                {
-                    return new ItemViewModel
-                    {
-                        Id = source.Items[i].Id,
-                        ItemName = source.Items[i].ItemName,
-                        Price = source.Items[i].Price,
-                        ItemParts = itemParts
-                    };
-                }
+                                Id = recIP.Id,
+                                ItemId = recIP.ItemId,
+                                PartId = recIP.PartId,
+                                PartName = source.Parts
+                                        .FirstOrDefault(recP => recP.Id == recIP.PartId)?.PartName,
+                                Count = recIP.Count
+                            })
+                            .ToList()
+                };
             }
-
             throw new Exception("Элемент не найден");
         }
 
         public void AddElement(ItemBindingModel model)
         {
-            int maxId = 0;
-            for (int i = 0; i < source.Items.Count; ++i)
+            Item element = source.Items.FirstOrDefault(rec => rec.ItemName == model.ItemName);
+            if (element != null)
             {
-                if (source.Items[i].Id > maxId)
-                {
-                    maxId = source.Items[i].Id;
-                }
-                if (source.Items[i].ItemName == model.ItemName)
-                {
-                    throw new Exception("Уже есть изделие с таким названием");
-                }
+                throw new Exception("Уже есть услуга с таким названием");
             }
+            int maxId = source.Items.Count > 0 ? source.Items.Max(rec => rec.Id) : 0;
             source.Items.Add(new Item
             {
                 Id = maxId + 1,
                 ItemName = model.ItemName,
                 Price = model.Price
             });
-            // компоненты для изделия
-            int maxPCId = 0;
-            for (int i = 0; i < source.ItemParts.Count; ++i)
-            {
-                if (source.ItemParts[i].Id > maxPCId)
-                {
-                    maxPCId = source.ItemParts[i].Id;
-                }
-            }
-            // убираем дубли по компонентам
-            for (int i = 0; i < model.ItemParts.Count; ++i)
-            {
-                for (int j = 1; j < model.ItemParts.Count; ++j)
-                {
-                    if (model.ItemParts[i].PartId ==
-                        model.ItemParts[j].PartId)
-                    {
-                        model.ItemParts[i].Count +=
-                            model.ItemParts[j].Count;
-                        model.ItemParts.RemoveAt(j--);
-                    }
-                }
-            }
-            // добавляем компоненты
-            for (int i = 0; i < model.ItemParts.Count; ++i)
+            int maxIPId = source.ItemParts.Count > 0 ?
+                                    source.ItemParts.Max(rec => rec.Id) : 0;
+            var groupParts = model.ItemParts
+                                        .GroupBy(rec => rec.PartId)
+                                        .Select(rec => new
+                                        {
+                                            PartId = rec.Key,
+                                            Count = rec.Sum(r => r.Count)
+                                        });
+            foreach (var groupPart in groupParts)
             {
                 source.ItemParts.Add(new ItemPart
                 {
-                    Id = ++maxPCId,
+                    Id = ++maxIPId,
                     ItemId = maxId + 1,
-                    PartId = model.ItemParts[i].PartId,
-                    Count = model.ItemParts[i].Count
+                    PartId = groupPart.PartId,
+                    Count = groupPart.Count
                 });
             }
         }
 
         public void UpdElement(ItemBindingModel model)
         {
-            int index = -1;
-            for (int i = 0; i < source.Items.Count; ++i)
+            Item element = source.Items.FirstOrDefault(rec =>
+                                        rec.ItemName == model.ItemName && rec.Id != model.Id);
+            if (element != null)
             {
-                if (source.Items[i].Id == model.Id)
-                {
-                    index = i;
-                }
-                if (source.Items[i].ItemName == model.ItemName &&
-                    source.Items[i].Id != model.Id)
-                {
-                    throw new Exception("Уже есть изделие с таким названием");
-                }
+                throw new Exception("Уже есть услуга с таким названием");
             }
-            if (index == -1)
+            element = source.Items.FirstOrDefault(rec => rec.Id == model.Id);
+            if (element == null)
             {
                 throw new Exception("Элемент не найден");
             }
-            source.Items[index].ItemName = model.ItemName;
-            source.Items[index].Price = model.Price;
-            int maxPCId = 0;
-            for (int i = 0; i < source.ItemParts.Count; ++i)
+            element.ItemName = model.ItemName;
+            element.Price = model.Price;
+
+            int maxIPId = source.ItemParts.Count > 0 ? source.ItemParts.Max(rec => rec.Id) : 0;
+            var compIds = model.ItemParts.Select(rec => rec.PartId).Distinct();
+            var updateParts = source.ItemParts
+                                            .Where(rec => rec.ItemId == model.Id &&
+                                           compIds.Contains(rec.PartId));
+            foreach (var updatePart in updateParts)
             {
-                if (source.ItemParts[i].Id > maxPCId)
-                {
-                    maxPCId = source.ItemParts[i].Id;
-                }
+                updatePart.Count = model.ItemParts
+                                                .FirstOrDefault(rec => rec.Id == updatePart.Id).Count;
             }
-            // обновляем существуюущие компоненты
-            for (int i = 0; i < source.ItemParts.Count; ++i)
+            source.ItemParts.RemoveAll(rec => rec.ItemId == model.Id &&
+                                       !compIds.Contains(rec.PartId));
+            var groupParts = model.ItemParts
+                                        .Where(rec => rec.Id == 0)
+                                        .GroupBy(rec => rec.PartId)
+                                        .Select(rec => new
+                                        {
+                                            PartId = rec.Key,
+                                            Count = rec.Sum(r => r.Count)
+                                        });
+            foreach (var groupPart in groupParts)
             {
-                if (source.ItemParts[i].ItemId == model.Id)
+                ItemPart elementPC = source.ItemParts
+                                        .FirstOrDefault(rec => rec.ItemId == model.Id &&
+                                                        rec.PartId == groupPart.PartId);
+                if (elementPC != null)
                 {
-                    bool flag = true;
-                    for (int j = 0; j < model.ItemParts.Count; ++j)
-                    {
-                        // если встретили, то изменяем количество
-                        if (source.ItemParts[i].Id == model.ItemParts[j].Id)
-                        {
-                            source.ItemParts[i].Count = model.ItemParts[j].Count;
-                            flag = false;
-                            break;
-                        }
-                    }
-                    // если не встретили, то удаляем
-                    if (flag)
-                    {
-                        source.ItemParts.RemoveAt(i--);
-                    }
+                    elementPC.Count += groupPart.Count;
                 }
-            }
-            // новые записи
-            for (int i = 0; i < model.ItemParts.Count; ++i)
-            {
-                if (model.ItemParts[i].Id == 0)
+                else
                 {
-                    // ищем дубли
-                    for (int j = 0; j < source.ItemParts.Count; ++j)
+                    source.ItemParts.Add(new ItemPart
                     {
-                        if (source.ItemParts[j].ItemId == model.Id &&
-                            source.ItemParts[j].PartId == model.ItemParts[i].PartId)
-                        {
-                            source.ItemParts[j].Count += model.ItemParts[i].Count;
-                            model.ItemParts[i].Id = source.ItemParts[j].Id;
-                            break;
-                        }
-                    }
-                    // если не нашли дубли, то новая запись
-                    if (model.ItemParts[i].Id == 0)
-                    {
-                        source.ItemParts.Add(new ItemPart
-                        {
-                            Id = ++maxPCId,
-                            ItemId = model.Id,
-                            PartId = model.ItemParts[i].PartId,
-                            Count = model.ItemParts[i].Count
-                        });
-                    }
+                        Id = ++maxIPId,
+                        ItemId = model.Id,
+                        PartId = groupPart.PartId,
+                        Count = groupPart.Count
+                    });
                 }
             }
         }
 
         public void DelElement(int id)
         {
-            // удаяем записи по компонентам при удалении изделия
-            for (int i = 0; i < source.ItemParts.Count; ++i)
+            Item element = source.Items.FirstOrDefault(rec => rec.Id == id);
+            if (element != null)
             {
-                if (source.ItemParts[i].ItemId == id)
-                {
-                    source.ItemParts.RemoveAt(i--);
-                }
+                source.ItemParts.RemoveAll(rec => rec.ItemId == id);
+                source.Items.Remove(element);
             }
-            for (int i = 0; i < source.Items.Count; ++i)
+            else
             {
-                if (source.Items[i].Id == id)
-                {
-                    source.Items.RemoveAt(i);
-                    return;
-                }
+                throw new Exception("Элемент не найден");
             }
-            throw new Exception("Элемент не найден");
         }
     }
 }
