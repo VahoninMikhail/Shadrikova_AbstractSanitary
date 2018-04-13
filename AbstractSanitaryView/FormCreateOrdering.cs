@@ -107,7 +107,7 @@ namespace AbstractSanitaryView
                     CustomerId = Convert.ToInt32(comboBoxCustomer.SelectedValue),
                     ItemId = Convert.ToInt32(comboBoxItem.SelectedValue),
                     Count = Convert.ToInt32(textBoxCount.Text),
-                    Sum = Convert.ToInt32(textBoxSum.Text)
+                    Sum = Convert.ToDecimal(textBoxSum.Text)
                 });
                 MessageBox.Show("Сохранение прошло успешно", "Сообщение", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 DialogResult = DialogResult.OK;

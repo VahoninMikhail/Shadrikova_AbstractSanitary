@@ -1,4 +1,5 @@
-﻿using AbstractSanitaryService.Interfaces;
+﻿using AbstractSanitaryService.BindingModels;
+using AbstractSanitaryService.Interfaces;
 using AbstractSanitaryService.ViewModels;
 using System;
 using System.Collections.Generic;
@@ -15,10 +16,13 @@ namespace AbstractSanitaryView
 
         private readonly IBasicService service;
 
-        public FormBasic(IBasicService service)
+        private readonly IReportService reportService;
+
+        public FormBasic(IBasicService service, IReportService reportService)
         {
             InitializeComponent();
             this.service = service;
+            this.reportService = reportService;
         }
 
         private void LoadData()
@@ -133,6 +137,41 @@ namespace AbstractSanitaryView
         private void buttonRef_Click(object sender, EventArgs e)
         {
             LoadData();
+        }
+
+        private void прайсУслугToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            SaveFileDialog sfd = new SaveFileDialog
+            {
+                Filter = "doc|*.doc|docx|*.docx"
+            };
+            if (sfd.ShowDialog() == DialogResult.OK)
+            {
+                try
+                {
+                    reportService.SaveItemPrice(new ReportBindingModel
+                    {
+                        FileName = sfd.FileName
+                    });
+                    MessageBox.Show("Выполнено", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
+        private void загруженностьСкладовToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var form = Container.Resolve<FormWarehousesLoad>();
+            form.ShowDialog();
+        }
+
+        private void заказыКлиентовToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var form = Container.Resolve<FormCustomerOrderings>();
+            form.ShowDialog();
         }
     }
 }
