@@ -34,6 +34,7 @@ namespace AbstractSanitaryView
             currentContainer.RegisterType<IItemService, ItemServiceBD>(new HierarchicalLifetimeManager());
             currentContainer.RegisterType<IWarehouseService, WarehouseServiceBD>(new HierarchicalLifetimeManager());
             currentContainer.RegisterType<IBasicService, BasicServiceBD>(new HierarchicalLifetimeManager());
+            currentContainer.RegisterType<IReportService, ReportServiceBD>(new HierarchicalLifetimeManager());
 
             return currentContainer;
         }

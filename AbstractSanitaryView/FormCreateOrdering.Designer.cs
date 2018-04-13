@@ -166,5 +166,6 @@
         private System.Windows.Forms.Label labelCount;
         private System.Windows.Forms.Label labelItem;
         private System.Windows.Forms.Label labelCustomer;
+
     }
 }
