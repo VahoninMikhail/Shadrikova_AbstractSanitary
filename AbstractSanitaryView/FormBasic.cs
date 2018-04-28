@@ -1,43 +1,39 @@
 ﻿using AbstractSanitaryService.BindingModels;
-using AbstractSanitaryService.Interfaces;
 using AbstractSanitaryService.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
-using Unity;
-using Unity.Attributes;
 
 namespace AbstractSanitaryView
 {
     public partial class FormBasic : Form
     {
-        [Dependency]
-        public new IUnityContainer Container { get; set; }
-
-        private readonly IBasicService service;
-
-        private readonly IReportService reportService;
-
-        public FormBasic(IBasicService service, IReportService reportService)
+        public FormBasic()
         {
             InitializeComponent();
-            this.service = service;
-            this.reportService = reportService;
         }
 
         private void LoadData()
         {
             try
             {
-                List<OrderingViewModel> list = service.GetList();
-                if (list != null)
+                var response = APIClient.GetRequest("api/Basic/GetList");
+                if (response.Result.IsSuccessStatusCode)
                 {
-                    dataGridView.DataSource = list;
-                    dataGridView.Columns[0].Visible = false;
-                    dataGridView.Columns[1].Visible = false;
-                    dataGridView.Columns[3].Visible = false;
-                    dataGridView.Columns[5].Visible = false;
-                    dataGridView.Columns[1].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                    List<OrderingViewModel> list = APIClient.GetElement<List<OrderingViewModel>>(response);
+                    if (list != null)
+                    {
+                        dataGridView.DataSource = list;
+                        dataGridView.Columns[0].Visible = false;
+                        dataGridView.Columns[1].Visible = false;
+                        dataGridView.Columns[3].Visible = false;
+                        dataGridView.Columns[5].Visible = false;
+                        dataGridView.Columns[1].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                    }
+                }
+                else
+                {
+                    throw new Exception(APIClient.GetError(response));
                 }
             }
             catch (Exception ex)
@@ -48,43 +44,43 @@ namespace AbstractSanitaryView
 
         private void клиентыToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var form = Container.Resolve<FormCustomers>();
+            var form = new FormCustomers();
             form.ShowDialog();
         }
 
         private void запчастиToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var form = Container.Resolve<FormParts>();
+            var form = new FormParts();
             form.ShowDialog();
         }
 
         private void услугиToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var form = Container.Resolve<FormItems>();
+            var form = new FormItems();
             form.ShowDialog();
         }
 
         private void складыToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var form = Container.Resolve<FormWarehouses>();
+            var form = new FormWarehouses();
             form.ShowDialog();
         }
 
         private void сантехникиToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var form = Container.Resolve<FormPlumbers>();
+            var form = new FormPlumbers();
             form.ShowDialog();
         }
 
         private void пополнитьСкладToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var form = Container.Resolve<FormPutOnWarehouse>();
+            var form = new FormPutOnWarehouse();
             form.ShowDialog();
         }
 
         private void buttonCreateOrdering_Click(object sender, EventArgs e)
         {
-            var form = Container.Resolve<FormCreateOrdering>();
+            var form = new FormCreateOrdering();
             form.ShowDialog();
             LoadData();
         }
@@ -93,8 +89,10 @@ namespace AbstractSanitaryView
         {
             if (dataGridView.SelectedRows.Count == 1)
             {
-                var form = Container.Resolve<FormTakeOrderingInWork>();
-                form.Id = Convert.ToInt32(dataGridView.SelectedRows[0].Cells[0].Value);
+                var form = new FormTakeOrderingInWork
+                {
+                    Id = Convert.ToInt32(dataGridView.SelectedRows[0].Cells[0].Value)
+                };
                 form.ShowDialog();
                 LoadData();
             }
@@ -107,8 +105,18 @@ namespace AbstractSanitaryView
                 int id = Convert.ToInt32(dataGridView.SelectedRows[0].Cells[0].Value);
                 try
                 {
-                    service.FinishOrdering(id);
-                    LoadData();
+                    var response = APIClient.PostRequest("api/Basic/FinishOrdering", new OrderingBindingModel
+                    {
+                        Id = id
+                    });
+                    if (response.Result.IsSuccessStatusCode)
+                    {
+                        LoadData();
+                    }
+                    else
+                    {
+                        throw new Exception(APIClient.GetError(response));
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -124,8 +132,18 @@ namespace AbstractSanitaryView
                 int id = Convert.ToInt32(dataGridView.SelectedRows[0].Cells[0].Value);
                 try
                 {
-                    service.PayOrdering(id);
-                    LoadData();
+                    var response = APIClient.PostRequest("api/Basic/PayOrdering", new OrderingBindingModel
+                    {
+                        Id = id
+                    });
+                    if (response.Result.IsSuccessStatusCode)
+                    {
+                        LoadData();
+                    }
+                    else
+                    {
+                        throw new Exception(APIClient.GetError(response));
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -149,11 +167,18 @@ namespace AbstractSanitaryView
             {
                 try
                 {
-                    reportService.SaveItemPrice(new ReportBindingModel
+                    var response = APIClient.PostRequest("api/Report/SaveItemPrice", new ReportBindingModel
                     {
                         FileName = sfd.FileName
                     });
-                    MessageBox.Show("Выполнено", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    if (response.Result.IsSuccessStatusCode)
+                    {
+                        MessageBox.Show("Выполнено", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    else
+                    {
+                        throw new Exception(APIClient.GetError(response));
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -164,13 +189,13 @@ namespace AbstractSanitaryView
 
         private void загруженностьСкладовToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var form = Container.Resolve<FormWarehousesLoad>();
+            var form = new FormWarehousesLoad();
             form.ShowDialog();
         }
 
         private void заказыКлиентовToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var form = Container.Resolve<FormCustomerOrderings>();
+            var form = new FormCustomerOrderings();
             form.ShowDialog();
         }
     }

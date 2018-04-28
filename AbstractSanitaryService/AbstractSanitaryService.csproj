@@ -53,6 +53,7 @@
     <Reference Include="System" />
     <Reference Include="System.ComponentModel.DataAnnotations" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -92,9 +93,9 @@
     <Compile Include="Interfaces\IReportService.cs" />
     <Compile Include="Interfaces\IWarehouseService.cs" />
     <Compile Include="ListDataSingleton.cs" />
-    <Compile Include="Migrations\201803231616123_FirstMigration.cs" />
-    <Compile Include="Migrations\201803231616123_FirstMigration.Designer.cs">
-      <DependentUpon>201803231616123_FirstMigration.cs</DependentUpon>
+    <Compile Include="Migrations\201804262023367_FirstMigration.cs" />
+    <Compile Include="Migrations\201804262023367_FirstMigration.Designer.cs">
+      <DependentUpon>201804262023367_FirstMigration.cs</DependentUpon>
     </Compile>
     <Compile Include="Migrations\Configuration.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -126,8 +127,8 @@
     <None Include="Resources\TIMCYR.TTF" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Migrations\201803231616123_FirstMigration.resx">
-      <DependentUpon>201803231616123_FirstMigration.cs</DependentUpon>
+    <EmbeddedResource Include="Migrations\201804262023367_FirstMigration.resx">
+      <DependentUpon>201804262023367_FirstMigration.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>

@@ -1,41 +1,36 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
-using Unity;
-using Unity.Attributes;
 using AbstractSanitaryService.ViewModels;
-using AbstractSanitaryService.Interfaces;
 
 namespace AbstractSanitaryView
 {
     public partial class FormItemPart : Form
     {
-        [Dependency]
-        public new IUnityContainer Container { get; set; }
-
         public ItemPartViewModel Model { set { model = value; } get { return model; } }
-
-        private readonly IPartService service;
 
         private ItemPartViewModel model;
 
-        public FormItemPart(IPartService service)
+        public FormItemPart()
         {
             InitializeComponent();
-            this.service = service;
         }
 
         private void FormItemPart_Load(object sender, EventArgs e)
         {
             try
             {
-                List<PartViewModel> list = service.GetList();
-                if (list != null)
+                var response = APIClient.GetRequest("api/Part/GetList");
+                if (response.Result.IsSuccessStatusCode)
                 {
                     comboBoxPart.DisplayMember = "PartName";
                     comboBoxPart.ValueMember = "Id";
-                    comboBoxPart.DataSource = list;
+                    comboBoxPart.DataSource = APIClient.GetElement<List<PartViewModel>>(response);
                     comboBoxPart.SelectedItem = null;
+                }
+                else
+                {
+                    throw new Exception(APIClient.GetError(response));
                 }
             }
             catch (Exception ex)
@@ -59,7 +54,7 @@ namespace AbstractSanitaryView
             }
             if (comboBoxPart.SelectedValue == null)
             {
-                MessageBox.Show("Выберите запчасти", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Выберите запчасть", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
             try
