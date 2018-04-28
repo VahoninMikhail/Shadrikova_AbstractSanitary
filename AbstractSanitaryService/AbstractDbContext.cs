@@ -1,13 +1,12 @@
 ﻿using AbstractSanitaryModel;
-using System.ComponentModel.DataAnnotations.Schema;
+using System;
 using System.Data.Entity;
 
 namespace AbstractSanitaryService
 {
-    [Table("AbstractDatabase1")]
     public class AbstractDbContext : DbContext
     {
-        public AbstractDbContext()
+        public AbstractDbContext() : base("AbstractDatabase1")
         {
             Configuration.ProxyCreationEnabled = false;
             Configuration.LazyLoadingEnabled = false;
@@ -29,5 +28,32 @@ namespace AbstractSanitaryService
         public virtual DbSet<Warehouse> Warehouses { get; set; }
 
         public virtual DbSet<WarehousePart> WarehouseParts { get; set; }
+
+        public override int SaveChanges()
+        {
+            try
+            {
+                return base.SaveChanges();
+            }
+            catch (Exception)
+            {
+                foreach (var entry in ChangeTracker.Entries())
+                {
+                    switch (entry.State)
+                    {
+                        case EntityState.Modified:
+                            entry.State = EntityState.Unchanged;
+                            break;
+                        case EntityState.Deleted:
+                            entry.Reload();
+                            break;
+                        case EntityState.Added:
+                            entry.State = EntityState.Detached;
+                            break;
+                    }
+                }
+                throw;
+            }
+        }
     }
 }
