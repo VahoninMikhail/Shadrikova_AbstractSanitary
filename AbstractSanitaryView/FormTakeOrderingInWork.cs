@@ -1,32 +1,20 @@
 ﻿using AbstractSanitaryService.BindingModels;
-using AbstractSanitaryService.Interfaces;
 using AbstractSanitaryService.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
-using Unity;
-using Unity.Attributes;
 
 namespace AbstractSanitaryView
 {
     public partial class FormTakeOrderingInWork : Form
     {
-        [Dependency]
-        public new IUnityContainer Container { get; set; }
-
         public int Id { set { id = value; } }
-
-        private readonly IPlumberService servicePl;
-
-        private readonly IBasicService serviceB;
 
         private int? id;
 
-        public FormTakeOrderingInWork(IPlumberService servicePl, IBasicService serviceB)
+        public FormTakeOrderingInWork()
         {
             InitializeComponent();
-            this.servicePl = servicePl;
-            this.serviceB = serviceB;
         }
 
         private void FormTakeOrderingInWork_Load(object sender, EventArgs e)
@@ -38,13 +26,21 @@ namespace AbstractSanitaryView
                     MessageBox.Show("Не указан заказ", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     Close();
                 }
-                List<PlumberViewModel> listI = servicePl.GetList();
-                if (listI != null)
+                var response = APIClient.GetRequest("api/Plumber/GetList");
+                if (response.Result.IsSuccessStatusCode)
                 {
-                    comboBoxPlumber.DisplayMember = "PlumberFIO";
-                    comboBoxPlumber.ValueMember = "Id";
-                    comboBoxPlumber.DataSource = listI;
-                    comboBoxPlumber.SelectedItem = null;
+                    List<PlumberViewModel> list = APIClient.GetElement<List<PlumberViewModel>>(response);
+                    if (list != null)
+                    {
+                        comboBoxPlumber.DisplayMember = "PlumberFIO";
+                        comboBoxPlumber.ValueMember = "Id";
+                        comboBoxPlumber.DataSource = list;
+                        comboBoxPlumber.SelectedItem = null;
+                    }
+                }
+                else
+                {
+                    throw new Exception(APIClient.GetError(response));
                 }
             }
             catch (Exception ex)
@@ -62,14 +58,21 @@ namespace AbstractSanitaryView
             }
             try
             {
-                serviceB.TakeOrderingInWork(new OrderingBindingModel
+                var response = APIClient.PostRequest("api/Basic/TakeOrderingInWork", new OrderingBindingModel
                 {
                     Id = id.Value,
                     PlumberId = Convert.ToInt32(comboBoxPlumber.SelectedValue)
                 });
-                MessageBox.Show("Сохранение прошло успешно", "Сообщение", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                DialogResult = DialogResult.OK;
-                Close();
+                if (response.Result.IsSuccessStatusCode)
+                {
+                    MessageBox.Show("Сохранение прошло успешно", "Сообщение", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    DialogResult = DialogResult.OK;
+                    Close();
+                }
+                else
+                {
+                    throw new Exception(APIClient.GetError(response));
+                }
             }
             catch (Exception ex)
             {

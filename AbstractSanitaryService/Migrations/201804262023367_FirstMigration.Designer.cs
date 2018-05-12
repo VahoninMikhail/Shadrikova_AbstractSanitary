@@ -13,7 +13,7 @@ namespace AbstractSanitaryService.Migrations
         
         string IMigrationMetadata.Id
         {
-            get { return "201803231616123_FirstMigration"; }
+            get { return "201804262023367_FirstMigration"; }
         }
         
         string IMigrationMetadata.Source

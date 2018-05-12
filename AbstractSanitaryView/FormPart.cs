@@ -1,28 +1,21 @@
 ﻿using System;
 using System.Windows.Forms;
-using Unity;
-using Unity.Attributes;
-using AbstractSanitaryService.Interfaces;
 using AbstractSanitaryService.ViewModels;
 using AbstractSanitaryService.BindingModels;
+using System.Threading.Tasks;
+using System.Net.Http;
 
 namespace AbstractSanitaryView
 {
     public partial class FormPart : Form
     {
-        [Dependency]
-        public new IUnityContainer Container { get; set; }
-
         public int Id { set { id = value; } }
-
-        private readonly IPartService service;
 
         private int? id;
 
-        public FormPart(IPartService service)
+        public FormPart()
         {
             InitializeComponent();
-            this.service = service;
         }
 
         private void FormPart_Load(object sender, EventArgs e)
@@ -31,10 +24,15 @@ namespace AbstractSanitaryView
             {
                 try
                 {
-                    PartViewModel view = service.GetElement(id.Value);
-                    if (view != null)
+                    var response = APIClient.GetRequest("api/Part/Get/" + id.Value);
+                    if (response.Result.IsSuccessStatusCode)
                     {
-                        textBoxName.Text = view.PartName;
+                        var component = APIClient.GetElement<PartViewModel>(response);
+                        textBoxName.Text = component.PartName;
+                    }
+                    else
+                    {
+                        throw new Exception(APIClient.GetError(response));
                     }
                 }
                 catch (Exception ex)
@@ -53,9 +51,10 @@ namespace AbstractSanitaryView
             }
             try
             {
+                Task<HttpResponseMessage> response;
                 if (id.HasValue)
                 {
-                    service.UpdElement(new PartBindingModel
+                    response = APIClient.PostRequest("api/Part/UpdElement", new PartBindingModel
                     {
                         Id = id.Value,
                         PartName = textBoxName.Text
@@ -63,14 +62,21 @@ namespace AbstractSanitaryView
                 }
                 else
                 {
-                    service.AddElement(new PartBindingModel
+                    response = APIClient.PostRequest("api/Part/AddElement", new PartBindingModel
                     {
                         PartName = textBoxName.Text
                     });
                 }
-                MessageBox.Show("Сохранение прошло успешно", "Сообщение", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                DialogResult = DialogResult.OK;
-                Close();
+                if (response.Result.IsSuccessStatusCode)
+                {
+                    MessageBox.Show("Сохранение прошло успешно", "Сообщение", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    DialogResult = DialogResult.OK;
+                    Close();
+                }
+                else
+                {
+                    throw new Exception(APIClient.GetError(response));
+                }
             }
             catch (Exception ex)
             {
