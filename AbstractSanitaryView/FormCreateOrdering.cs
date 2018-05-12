@@ -2,6 +2,7 @@
 using AbstractSanitaryService.ViewModels;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace AbstractSanitaryView
@@ -17,41 +18,30 @@ namespace AbstractSanitaryView
         {
             try
             {
-                var responseC = APIClient.GetRequest("api/Customer/GetList");
-                if (responseC.Result.IsSuccessStatusCode)
+                List<CustomerViewModel> listC = Task.Run(() => APIClient.GetRequestData<List<CustomerViewModel>>("api/Customer/GetList")).Result;
+                if (listC != null)
                 {
-                    List<CustomerViewModel> list = APIClient.GetElement<List<CustomerViewModel>>(responseC);
-                    if (list != null)
-                    {
-                        comboBoxCustomer.DisplayMember = "CustomerFIO";
-                        comboBoxCustomer.ValueMember = "Id";
-                        comboBoxCustomer.DataSource = list;
-                        comboBoxCustomer.SelectedItem = null;
-                    }
+                    comboBoxCustomer.DisplayMember = "CustomerFIO";
+                    comboBoxCustomer.ValueMember = "Id";
+                    comboBoxCustomer.DataSource = listC;
+                    comboBoxCustomer.SelectedItem = null;
                 }
-                else
+
+                List<ItemViewModel> listI = Task.Run(() => APIClient.GetRequestData<List<ItemViewModel>>("api/Item/GetList")).Result;
+                if (listI != null)
                 {
-                    throw new Exception(APIClient.GetError(responseC));
-                }
-                var responseP = APIClient.GetRequest("api/Item/GetList");
-                if (responseP.Result.IsSuccessStatusCode)
-                {
-                    List<ItemViewModel> list = APIClient.GetElement<List<ItemViewModel>>(responseP);
-                    if (list != null)
-                    {
-                        comboBoxItem.DisplayMember = "ItemName";
-                        comboBoxItem.ValueMember = "Id";
-                        comboBoxItem.DataSource = list;
-                        comboBoxItem.SelectedItem = null;
-                    }
-                }
-                else
-                {
-                    throw new Exception(APIClient.GetError(responseP));
+                    comboBoxItem.DisplayMember = "ItemName";
+                    comboBoxItem.ValueMember = "Id";
+                    comboBoxItem.DataSource = listI;
+                    comboBoxItem.SelectedItem = null;
                 }
             }
             catch (Exception ex)
             {
+                while (ex.InnerException != null)
+                {
+                    ex = ex.InnerException;
+                }
                 MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -63,20 +53,16 @@ namespace AbstractSanitaryView
                 try
                 {
                     int id = Convert.ToInt32(comboBoxItem.SelectedValue);
-                    var responseP = APIClient.GetRequest("api/Item/Get/" + id);
-                    if (responseP.Result.IsSuccessStatusCode)
-                    {
-                        ItemViewModel product = APIClient.GetElement<ItemViewModel>(responseP);
-                        int count = Convert.ToInt32(textBoxCount.Text);
-                        textBoxSum.Text = (count * (int)product.Price).ToString();
-                    }
-                    else
-                    {
-                        throw new Exception(APIClient.GetError(responseP));
-                    }
+                    ItemViewModel product = Task.Run(() => APIClient.GetRequestData<ItemViewModel>("api/Item/Get/" + id)).Result;
+                    int count = Convert.ToInt32(textBoxCount.Text);
+                    textBoxSum.Text = (count * (int)product.Price).ToString();
                 }
                 catch (Exception ex)
                 {
+                    while (ex.InnerException != null)
+                    {
+                        ex = ex.InnerException;
+                    }
                     MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
@@ -109,35 +95,36 @@ namespace AbstractSanitaryView
                 MessageBox.Show("Выберите услугу", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
-            try
+
+            int customerId = Convert.ToInt32(comboBoxCustomer.SelectedValue);
+            int itemId = Convert.ToInt32(comboBoxItem.SelectedValue);
+            int count = Convert.ToInt32(textBoxCount.Text);
+            int sum = Convert.ToInt32(textBoxSum.Text);
+            Task task = Task.Run(() => APIClient.PostRequestData("api/Basic/CreateOrdering", new OrderingBindingModel
             {
-                var response = APIClient.PostRequest("api/Basic/CreateOrdering", new OrderingBindingModel
-                {
-                    CustomerId = Convert.ToInt32(comboBoxCustomer.SelectedValue),
-                    ItemId = Convert.ToInt32(comboBoxItem.SelectedValue),
-                    Count = Convert.ToInt32(textBoxCount.Text),
-                    Sum = Convert.ToInt32(textBoxSum.Text)
-                });
-                if (response.Result.IsSuccessStatusCode)
-                {
-                    MessageBox.Show("Сохранение прошло успешно", "Сообщение", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    DialogResult = DialogResult.OK;
-                    Close();
-                }
-                else
-                {
-                    throw new Exception(APIClient.GetError(response));
-                }
-            }
-            catch (Exception ex)
+                CustomerId = customerId,
+                ItemId = itemId,
+                Count = count,
+                Sum = sum
+            }));
+
+            task.ContinueWith((prevTask) => MessageBox.Show("Сохранение прошло успешно. Обновите список", "Сообщение", MessageBoxButtons.OK, MessageBoxIcon.Information),
+                TaskContinuationOptions.OnlyOnRanToCompletion);
+            task.ContinueWith((prevTask) =>
             {
+                var ex = (Exception)prevTask.Exception;
+                while (ex.InnerException != null)
+                {
+                    ex = ex.InnerException;
+                }
                 MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            }, TaskContinuationOptions.OnlyOnFaulted);
+
+            Close();
         }
 
         private void buttonCancel_Click(object sender, EventArgs e)
         {
-            DialogResult = DialogResult.Cancel;
             Close();
         }
     }
