@@ -1,43 +1,40 @@
 ﻿using AbstractSanitaryService.BindingModels;
-using AbstractSanitaryService.Interfaces;
+using AbstractSanitaryService.ViewModels;
 using System;
+using System.Collections.Generic;
 using System.Windows.Forms;
-using Unity;
-using Unity.Attributes;
 
 namespace AbstractSanitaryView
 {
     public partial class FormWarehousesLoad : Form
     {
-        [Dependency]
-        public new IUnityContainer Container { get; set; }
-
-        private readonly IReportService service;
-
-        public FormWarehousesLoad(IReportService service)
+        public FormWarehousesLoad()
         {
             InitializeComponent();
-            this.service = service;
         }
 
         private void FormWarehousesLoad_Load(object sender, EventArgs e)
         {
             try
             {
-                var dict = service.GetWarehousesLoad();
-                if (dict != null)
+                var response = APIClient.GetRequest("api/Report/GetWarehousesLoad");
+                if (response.Result.IsSuccessStatusCode)
                 {
                     dataGridView.Rows.Clear();
-                    foreach (var elem in dict)
+                    foreach (var elem in APIClient.GetElement<List<WarehousesLoadViewModel>>(response))
                     {
                         dataGridView.Rows.Add(new object[] { elem.WarehouseName, "", "" });
                         foreach (var listElem in elem.Parts)
                         {
-                            dataGridView.Rows.Add(new object[] { "", listElem.Item1, listElem.Item2 });
+                            dataGridView.Rows.Add(new object[] { "", listElem.PartName, listElem.Count });
                         }
                         dataGridView.Rows.Add(new object[] { "Итого", "", elem.TotalCount });
                         dataGridView.Rows.Add(new object[] { });
                     }
+                }
+                else
+                {
+                    throw new Exception(APIClient.GetError(response));
                 }
             }
             catch (Exception ex)
@@ -56,11 +53,18 @@ namespace AbstractSanitaryView
             {
                 try
                 {
-                    service.SaveWarehousesLoad(new ReportBindingModel
+                    var response = APIClient.PostRequest("api/Report/SaveWarehousesLoad", new ReportBindingModel
                     {
                         FileName = sfd.FileName
                     });
-                    MessageBox.Show("Выполнено", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    if (response.Result.IsSuccessStatusCode)
+                    {
+                        MessageBox.Show("Выполнено", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    else
+                    {
+                        throw new Exception(APIClient.GetError(response));
+                    }
                 }
                 catch (Exception ex)
                 {

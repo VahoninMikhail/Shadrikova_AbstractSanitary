@@ -1,31 +1,24 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
-using Unity;
-using Unity.Attributes;
-using AbstractSanitaryService.Interfaces;
 using AbstractSanitaryService.ViewModels;
 using AbstractSanitaryService.BindingModels;
+using System.Threading.Tasks;
+using System.Net.Http;
 
 namespace AbstractSanitaryView
 {
     public partial class FormItem : Form
     {
-        [Dependency]
-        public new IUnityContainer Container { get; set; }
-
         public int Id { set { id = value; } }
-
-        private readonly IItemService service;
 
         private int? id;
 
         private List<ItemPartViewModel> itemParts;
 
-        public FormItem(IItemService service)
+        public FormItem()
         {
             InitializeComponent();
-            this.service = service;
         }
 
         private void FormItem_Load(object sender, EventArgs e)
@@ -34,13 +27,18 @@ namespace AbstractSanitaryView
             {
                 try
                 {
-                    ItemViewModel view = service.GetElement(id.Value);
-                    if (view != null)
+                    var response = APIClient.GetRequest("api/Item/Get/" + id.Value);
+                    if (response.Result.IsSuccessStatusCode)
                     {
-                        textBoxName.Text = view.ItemName;
-                        textBoxPrice.Text = view.Price.ToString();
-                        itemParts = view.ItemParts;
+                        var item = APIClient.GetElement<ItemViewModel>(response);
+                        textBoxName.Text = item.ItemName;
+                        textBoxPrice.Text = item.Price.ToString();
+                        itemParts = item.ItemParts;
                         LoadData();
+                    }
+                    else
+                    {
+                        throw new Exception(APIClient.GetError(response));
                     }
                 }
                 catch (Exception ex)
@@ -76,7 +74,7 @@ namespace AbstractSanitaryView
 
         private void buttonAdd_Click(object sender, EventArgs e)
         {
-            var form = Container.Resolve<FormItemPart>();
+            var form = new FormItemPart();
             if (form.ShowDialog() == DialogResult.OK)
             {
                 if (form.Model != null)
@@ -95,7 +93,7 @@ namespace AbstractSanitaryView
         {
             if (dataGridView.SelectedRows.Count == 1)
             {
-                var form = Container.Resolve<FormItemPart>();
+                var form = new FormItemPart();
                 form.Model = itemParts[dataGridView.SelectedRows[0].Cells[0].RowIndex];
                 if (form.ShowDialog() == DialogResult.OK)
                 {
@@ -159,9 +157,10 @@ namespace AbstractSanitaryView
                         Count = itemParts[i].Count
                     });
                 }
+                Task<HttpResponseMessage> response;
                 if (id.HasValue)
                 {
-                    service.UpdElement(new ItemBindingModel
+                    response = APIClient.PostRequest("api/Item/UpdElement", new ItemBindingModel
                     {
                         Id = id.Value,
                         ItemName = textBoxName.Text,
@@ -171,16 +170,23 @@ namespace AbstractSanitaryView
                 }
                 else
                 {
-                    service.AddElement(new ItemBindingModel
+                    response = APIClient.PostRequest("api/Item/AddElement", new ItemBindingModel
                     {
                         ItemName = textBoxName.Text,
                         Price = Convert.ToInt32(textBoxPrice.Text),
                         ItemParts = itemPartBM
                     });
                 }
-                MessageBox.Show("Сохранение прошло успешно", "Сообщение", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                DialogResult = DialogResult.OK;
-                Close();
+                if (response.Result.IsSuccessStatusCode)
+                {
+                    MessageBox.Show("Сохранение прошло успешно", "Сообщение", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    DialogResult = DialogResult.OK;
+                    Close();
+                }
+                else
+                {
+                    throw new Exception(APIClient.GetError(response));
+                }
             }
             catch (Exception ex)
             {

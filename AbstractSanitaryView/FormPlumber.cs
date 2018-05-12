@@ -1,28 +1,21 @@
 ﻿using AbstractSanitaryService.BindingModels;
-using AbstractSanitaryService.Interfaces;
 using AbstractSanitaryService.ViewModels;
 using System;
+using System.Net.Http;
+using System.Threading.Tasks;
 using System.Windows.Forms;
-using Unity;
-using Unity.Attributes;
 
 namespace AbstractSanitaryView
 {
     public partial class FormPlumber : Form
     {
-        [Dependency]
-        public new IUnityContainer Container { get; set; }
-
         public int Id { set { id = value; } }
-
-        private readonly IPlumberService service;
 
         private int? id;
 
-        public FormPlumber(IPlumberService service)
+        public FormPlumber()
         {
             InitializeComponent();
-            this.service = service;
         }
 
         private void FormPlumber_Load(object sender, EventArgs e)
@@ -31,10 +24,15 @@ namespace AbstractSanitaryView
             {
                 try
                 {
-                    PlumberViewModel view = service.GetElement(id.Value);
-                    if (view != null)
+                    var response = APIClient.GetRequest("api/Plumber/Get/" + id.Value);
+                    if (response.Result.IsSuccessStatusCode)
                     {
-                        textBoxFIO.Text = view.PlumberFIO;
+                        var plumber = APIClient.GetElement<PlumberViewModel>(response);
+                        textBoxFIO.Text = plumber.PlumberFIO;
+                    }
+                    else
+                    {
+                        throw new Exception(APIClient.GetError(response));
                     }
                 }
                 catch (Exception ex)
@@ -48,14 +46,15 @@ namespace AbstractSanitaryView
         {
             if (string.IsNullOrEmpty(textBoxFIO.Text))
             {
-                MessageBox.Show("Введите ФИО", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Заполните ФИО", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
             try
             {
+                Task<HttpResponseMessage> response;
                 if (id.HasValue)
                 {
-                    service.UpdElement(new PlumberBindingModel
+                    response = APIClient.PostRequest("api/Plumber/UpdElement", new PlumberBindingModel
                     {
                         Id = id.Value,
                         PlumberFIO = textBoxFIO.Text
@@ -63,14 +62,21 @@ namespace AbstractSanitaryView
                 }
                 else
                 {
-                    service.AddElement(new PlumberBindingModel
+                    response = APIClient.PostRequest("api/Plumber/AddElement", new PlumberBindingModel
                     {
                         PlumberFIO = textBoxFIO.Text
                     });
                 }
-                MessageBox.Show("Сохранение прошло успешно", "Сообщение", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                DialogResult = DialogResult.OK;
-                Close();
+                if (response.Result.IsSuccessStatusCode)
+                {
+                    MessageBox.Show("Сохранение прошло успешно", "Сообщение", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    DialogResult = DialogResult.OK;
+                    Close();
+                }
+                else
+                {
+                    throw new Exception(APIClient.GetError(response));
+                }
             }
             catch (Exception ex)
             {

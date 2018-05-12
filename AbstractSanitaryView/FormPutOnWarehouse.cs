@@ -1,9 +1,6 @@
-﻿using AbstractSanitaryService.Interfaces;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
-using Unity;
-using Unity.Attributes;
 using AbstractSanitaryService.ViewModels;
 using AbstractSanitaryService.BindingModels;
 
@@ -11,42 +8,46 @@ namespace AbstractSanitaryView
 {
     public partial class FormPutOnWarehouse : Form
     {
-        [Dependency]
-        public new IUnityContainer Container { get; set; }
-
-        private readonly IWarehouseService serviceW;
-
-        private readonly IPartService serviceP;
-
-        private readonly IBasicService serviceB;
-
-        public FormPutOnWarehouse(IWarehouseService serviceW, IPartService serviceP, IBasicService serviceB)
+        public FormPutOnWarehouse()
         {
             InitializeComponent();
-            this.serviceW = serviceW;
-            this.serviceP = serviceP;
-            this.serviceB = serviceB;
         }
 
         private void FormPutOnWarehouse_Load(object sender, EventArgs e)
         {
             try
             {
-                List<PartViewModel> listC = serviceP.GetList();
-                if (listC != null)
+                var responseP = APIClient.GetRequest("api/Part/GetList");
+                if (responseP.Result.IsSuccessStatusCode)
                 {
-                    comboBoxPart.DisplayMember = "PartName";
-                    comboBoxPart.ValueMember = "Id";
-                    comboBoxPart.DataSource = listC;
-                    comboBoxPart.SelectedItem = null;
+                    List<PartViewModel> list = APIClient.GetElement<List<PartViewModel>>(responseP);
+                    if (list != null)
+                    {
+                        comboBoxPart.DisplayMember = "PartName";
+                        comboBoxPart.ValueMember = "Id";
+                        comboBoxPart.DataSource = list;
+                        comboBoxPart.SelectedItem = null;
+                    }
                 }
-                List<WarehouseViewModel> listS = serviceW.GetList();
-                if (listS != null)
+                else
                 {
-                    comboBoxWarehouse.DisplayMember = "WarehouseName";
-                    comboBoxWarehouse.ValueMember = "Id";
-                    comboBoxWarehouse.DataSource = listS;
-                    comboBoxWarehouse.SelectedItem = null;
+                    throw new Exception(APIClient.GetError(responseP));
+                }
+                var responseW = APIClient.GetRequest("api/Warehouse/GetList");
+                if (responseW.Result.IsSuccessStatusCode)
+                {
+                    List<WarehouseViewModel> list = APIClient.GetElement<List<WarehouseViewModel>>(responseW);
+                    if (list != null)
+                    {
+                        comboBoxWarehouse.DisplayMember = "WarehouseName";
+                        comboBoxWarehouse.ValueMember = "Id";
+                        comboBoxWarehouse.DataSource = list;
+                        comboBoxWarehouse.SelectedItem = null;
+                    }
+                }
+                else
+                {
+                    throw new Exception(APIClient.GetError(responseP));
                 }
             }
             catch (Exception ex)
@@ -64,7 +65,7 @@ namespace AbstractSanitaryView
             }
             if (comboBoxPart.SelectedValue == null)
             {
-                MessageBox.Show("Выберите запчасть", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Выберите компонент", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
             if (comboBoxWarehouse.SelectedValue == null)
@@ -74,15 +75,22 @@ namespace AbstractSanitaryView
             }
             try
             {
-                serviceB.PutPartOnWarehouse(new WarehousePartBindingModel
+                var response = APIClient.PostRequest("api/Basic/PutPartOnWarehouse", new WarehousePartBindingModel
                 {
                     PartId = Convert.ToInt32(comboBoxPart.SelectedValue),
                     WarehouseId = Convert.ToInt32(comboBoxWarehouse.SelectedValue),
                     Count = Convert.ToInt32(textBoxCount.Text)
                 });
-                MessageBox.Show("Сохранение прошло успешно", "Сообщение", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                DialogResult = DialogResult.OK;
-                Close();
+                if (response.Result.IsSuccessStatusCode)
+                {
+                    MessageBox.Show("Сохранение прошло успешно", "Сообщение", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    DialogResult = DialogResult.OK;
+                    Close();
+                }
+                else
+                {
+                    throw new Exception(APIClient.GetError(response));
+                }
             }
             catch (Exception ex)
             {

@@ -4,7 +4,7 @@ using System.Data.Entity;
 
 namespace AbstractSanitaryService
 {
-    [Table("AbstractDatabase")]
+    [Table("AbstractDatabase1")]
     public class AbstractDbContext : DbContext
     {
         public AbstractDbContext()
