@@ -4,6 +4,7 @@ using AbstractSanitaryService.Interfaces;
 using AbstractSanitaryService.ViewModels;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace AbstractSanitaryService.ImplementationsList
 {
@@ -18,68 +19,32 @@ namespace AbstractSanitaryService.ImplementationsList
 
         public List<OrderingViewModel> GetList()
         {
-            List<OrderingViewModel> result = new List<OrderingViewModel>();
-            for (int i = 0; i < source.Orderings.Count; ++i)
-            {
-                string customerFIO = string.Empty;
-                for (int j = 0; j < source.Customers.Count; ++j)
+            List<OrderingViewModel> result = source.Orderings
+                .Select(rec => new OrderingViewModel
                 {
-                    if (source.Customers[j].Id == source.Orderings[i].CustomerId)
-                    {
-                        customerFIO = source.Customers[j].CustomerFIO;
-                        break;
-                    }
-                }
-                string itemName = string.Empty;
-                for (int j = 0; j < source.Items.Count; ++j)
-                {
-                    if (source.Items[j].Id == source.Orderings[i].ItemId)
-                    {
-                        itemName = source.Items[j].ItemName;
-                        break;
-                    }
-                }
-                string plumberFIO = string.Empty;
-                if (source.Orderings[i].PlumberId.HasValue)
-                {
-                    for (int j = 0; j < source.Plumbers.Count; ++j)
-                    {
-                        if (source.Plumbers[j].Id == source.Orderings[i].PlumberId.Value)
-                        {
-                            plumberFIO = source.Plumbers[j].PlumberFIO;
-                            break;
-                        }
-                    }
-                }
-                result.Add(new OrderingViewModel
-                {
-                    Id = source.Orderings[i].Id,
-                    CustomerId = source.Orderings[i].CustomerId,
-                    CustomerFIO = customerFIO,
-                    ItemId = source.Orderings[i].ItemId,
-                    ItemName = itemName,
-                    PlumberId = source.Orderings[i].PlumberId,
-                    PlumberName = plumberFIO,
-                    Count = source.Orderings[i].Count,
-                    Sum = source.Orderings[i].Sum,
-                    DateCreate = source.Orderings[i].DateCreate.ToLongDateString(),
-                    DateImplement = source.Orderings[i].DateImplement?.ToLongDateString(),
-                    Status = source.Orderings[i].Status.ToString()
-                });
-            }
+                    Id = rec.Id,
+                    CustomerId = rec.CustomerId,
+                    ItemId = rec.ItemId,
+                    PlumberId = rec.PlumberId,
+                    DateCreate = rec.DateCreate.ToLongDateString(),
+                    DateImplement = rec.DateImplement?.ToLongDateString(),
+                    Status = rec.Status.ToString(),
+                    Count = rec.Count,
+                    Sum = rec.Sum,
+                    CustomerFIO = source.Customers
+                                    .FirstOrDefault(recC => recC.Id == rec.CustomerId)?.CustomerFIO,
+                    ItemName = source.Items
+                                    .FirstOrDefault(recI => recI.Id == rec.ItemId)?.ItemName,
+                    PlumberName = source.Plumbers
+                                    .FirstOrDefault(recPl => recPl.Id == rec.PlumberId)?.PlumberFIO
+                })
+                .ToList();
             return result;
         }
 
         public void CreateOrdering(OrderingBindingModel model)
         {
-            int maxId = 0;
-            for (int i = 0; i < source.Orderings.Count; ++i)
-            {
-                if (source.Orderings[i].Id > maxId)
-                {
-                    maxId = source.Customers[i].Id;
-                }
-            }
+            int maxId = source.Orderings.Count > 0 ? source.Orderings.Max(rec => rec.Id) : 0;
             source.Orderings.Add(new Ordering
             {
                 Id = maxId + 1,
@@ -94,131 +59,89 @@ namespace AbstractSanitaryService.ImplementationsList
 
         public void TakeOrderingInWork(OrderingBindingModel model)
         {
-            int index = -1;
-            for (int i = 0; i < source.Orderings.Count; ++i)
-            {
-                if (source.Orderings[i].Id == model.Id)
-                {
-                    index = i;
-                    break;
-                }
-            }
-            if (index == -1)
+            Ordering element = source.Orderings.FirstOrDefault(rec => rec.Id == model.Id);
+            if (element == null)
             {
                 throw new Exception("Элемент не найден");
             }
-            for (int i = 0; i < source.ItemParts.Count; ++i)
+            var ItemParts = source.ItemParts.Where(rec => rec.ItemId == element.ItemId);
+            foreach (var ItemPart in ItemParts)
             {
-                if (source.ItemParts[i].ItemId == source.Orderings[index].ItemId)
+                int countOnWarehouses = source.WarehouseParts
+                                            .Where(rec => rec.PartId == ItemPart.PartId)
+                                            .Sum(rec => rec.Count);
+                if (countOnWarehouses < ItemPart.Count * element.Count)
                 {
-                    int countOnWarehouses = 0;
-                    for (int j = 0; j < source.WarehouseParts.Count; ++j)
+                    var PartName = source.Parts
+                                    .FirstOrDefault(rec => rec.Id == ItemPart.PartId);
+                    throw new Exception("Не достаточно запчасти " + PartName?.PartName +
+                        " требуется " + ItemPart.Count + ", в наличии " + countOnWarehouses);
+                }
+            }
+            foreach (var ItemPart in ItemParts)
+            {
+                int countOnWarehouses = ItemPart.Count * element.Count;
+                var WarehouseParts = source.WarehouseParts
+                                            .Where(rec => rec.PartId == ItemPart.PartId);
+                foreach (var WarehousePart in WarehouseParts)
+                {
+                    if (WarehousePart.Count >= countOnWarehouses)
                     {
-                        if (source.WarehouseParts[j].PartId == source.ItemParts[i].PartId)
-                        {
-                            countOnWarehouses += source.WarehouseParts[j].Count;
-                        }
+                        WarehousePart.Count -= countOnWarehouses;
+                        break;
                     }
-                    if (countOnWarehouses < source.ItemParts[i].Count * source.Orderings[index].Count)
+                    else
                     {
-                        for (int j = 0; j < source.Parts.Count; ++j)
-                        {
-                            if (source.Parts[j].Id == source.ItemParts[i].PartId)
-                            {
-                                throw new Exception("Не достаточно запчастей " + source.Parts[j].PartName +
-                                    " требуется " + source.ItemParts[i].Count + ", в наличии " + countOnWarehouses);
-                            }
-                        }
+                        countOnWarehouses -= WarehousePart.Count;
+                        WarehousePart.Count = 0;
                     }
                 }
             }
-            for (int i = 0; i < source.ItemParts.Count; ++i)
-            {
-                if (source.ItemParts[i].ItemId == source.Orderings[index].ItemId)
-                {
-                    int countOnWarehouses = source.ItemParts[i].Count * source.Orderings[index].Count;
-                    for (int j = 0; j < source.WarehouseParts.Count; ++j)
-                    {
-                        if (source.WarehouseParts[j].PartId == source.ItemParts[i].PartId)
-                        {
-                            if (source.WarehouseParts[j].Count >= countOnWarehouses)
-                            {
-                                source.WarehouseParts[j].Count -= countOnWarehouses;
-                                break;
-                            }
-                            else
-                            {
-                                countOnWarehouses -= source.WarehouseParts[j].Count;
-                                source.WarehouseParts[j].Count = 0;
-                            }
-                        }
-                    }
-                }
-            }
-            source.Orderings[index].PlumberId = model.PlumberId;
-            source.Orderings[index].DateImplement = DateTime.Now;
-            source.Orderings[index].Status = OrderingStatus.Выполняется;
+            element.PlumberId = model.PlumberId;
+            element.DateImplement = DateTime.Now;
+            element.Status = OrderingStatus.Выполняется;
         }
 
         public void FinishOrdering(int id)
         {
-            int index = -1;
-            for (int i = 0; i < source.Orderings.Count; ++i)
-            {
-                if (source.Customers[i].Id == id)
-                {
-                    index = i;
-                    break;
-                }
-            }
-            if (index == -1)
+            Ordering element = source.Orderings.FirstOrDefault(rec => rec.Id == id);
+            if (element == null)
             {
                 throw new Exception("Элемент не найден");
             }
-            source.Orderings[index].Status = OrderingStatus.Готов;
+            element.Status = OrderingStatus.Готов;
         }
 
         public void PayOrdering(int id)
         {
-            int index = -1;
-            for (int i = 0; i < source.Orderings.Count; ++i)
-            {
-                if (source.Customers[i].Id == id)
-                {
-                    index = i;
-                    break;
-                }
-            }
-            if (index == -1)
+            Ordering element = source.Orderings.FirstOrDefault(rec => rec.Id == id);
+            if (element == null)
             {
                 throw new Exception("Элемент не найден");
             }
-            source.Orderings[index].Status = OrderingStatus.Оплачен;
+            element.Status = OrderingStatus.Оплачен;
         }
 
         public void PutPartOnWarehouse(WarehousePartBindingModel model)
         {
-            int maxId = 0;
-            for (int i = 0; i < source.WarehouseParts.Count; ++i)
+            WarehousePart element = source.WarehouseParts
+                                                .FirstOrDefault(rec => rec.WarehouseId == model.WarehouseId &&
+                                                                    rec.PartId == model.PartId);
+            if (element != null)
             {
-                if (source.WarehouseParts[i].WarehouseId == model.WarehouseId &&
-                    source.WarehouseParts[i].PartId == model.PartId)
-                {
-                    source.WarehouseParts[i].Count += model.Count;
-                    return;
-                }
-                if (source.WarehouseParts[i].Id > maxId)
-                {
-                    maxId = source.WarehouseParts[i].Id;
-                }
+                element.Count += model.Count;
             }
-            source.WarehouseParts.Add(new WarehousePart
+            else
             {
-                Id = ++maxId,
-                WarehouseId = model.WarehouseId,
-                PartId = model.PartId,
-                Count = model.Count
-            });
+                int maxId = source.WarehouseParts.Count > 0 ? source.WarehouseParts.Max(rec => rec.Id) : 0;
+                source.WarehouseParts.Add(new WarehousePart
+                {
+                    Id = ++maxId,
+                    WarehouseId = model.WarehouseId,
+                    PartId = model.PartId,
+                    Count = model.Count
+                });
+            }
         }
     }
 }
