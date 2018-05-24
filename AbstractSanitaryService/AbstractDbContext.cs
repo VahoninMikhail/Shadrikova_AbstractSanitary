@@ -29,6 +29,8 @@ namespace AbstractSanitaryService
 
         public virtual DbSet<WarehousePart> WarehouseParts { get; set; }
 
+        public virtual DbSet<MessageInfo> MessageInfos { get; set; }
+
         public override int SaveChanges()
         {
             try

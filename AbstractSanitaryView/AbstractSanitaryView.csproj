@@ -134,6 +134,12 @@
     <Compile Include="FormItems.Designer.cs">
       <DependentUpon>FormItems.cs</DependentUpon>
     </Compile>
+    <Compile Include="FormMails.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="FormMails.Designer.cs">
+      <DependentUpon>FormMails.cs</DependentUpon>
+    </Compile>
     <Compile Include="FormPart.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -189,6 +195,7 @@
       <DependentUpon>FormWarehousesLoad.cs</DependentUpon>
     </Compile>
     <Compile Include="HttpErrorMessage.cs" />
+    <Compile Include="MailCustomer.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SqlServerTypes\Loader.cs" />
@@ -215,6 +222,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="FormItems.resx">
       <DependentUpon>FormItems.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="FormMails.resx">
+      <DependentUpon>FormMails.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="FormPart.resx">
       <DependentUpon>FormPart.cs</DependentUpon>

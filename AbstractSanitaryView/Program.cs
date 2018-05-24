@@ -12,6 +12,7 @@ namespace AbstractSanitaryView
         static void Main()
         {
             APIClient.Connect();
+            MailCustomer.Connect();
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new FormBasic());

@@ -52,6 +52,7 @@
     <Compile Include="Customer.cs" />
     <Compile Include="Item.cs" />
     <Compile Include="ItemPart.cs" />
+    <Compile Include="MessageInfo.cs" />
     <Compile Include="Ordering.cs" />
     <Compile Include="OrderingStatus.cs" />
     <Compile Include="Part.cs" />
