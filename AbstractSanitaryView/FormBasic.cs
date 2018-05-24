@@ -190,5 +190,11 @@ namespace AbstractSanitaryView
             var form = new FormCustomerOrderings();
             form.ShowDialog();
         }
+
+        private void письмаToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var form = new FormMails();
+            form.ShowDialog();
+        }
     }
 }

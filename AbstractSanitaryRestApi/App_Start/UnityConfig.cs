@@ -55,6 +55,7 @@ namespace AbstractSanitaryRestApi
             container.RegisterType<IWarehouseService, WarehouseServiceBD>(new HierarchicalLifetimeManager());
             container.RegisterType<IBasicService, BasicServiceBD>(new HierarchicalLifetimeManager());
             container.RegisterType<IReportService, ReportServiceBD>(new HierarchicalLifetimeManager());
+            container.RegisterType<IMessageInfoService, MessageInfoServiceBD>(new HierarchicalLifetimeManager());
         }
     }
 }
