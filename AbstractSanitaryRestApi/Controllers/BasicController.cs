@@ -1,4 +1,5 @@
-﻿using AbstractSanitaryService.BindingModels;
+﻿using AbstractSanitaryRestApi.Services;
+using AbstractSanitaryService.BindingModels;
 using AbstractSanitaryService.Interfaces;
 using System;
 using System.Web.Http;
@@ -53,6 +54,18 @@ namespace AbstractSanitaryRestApi.Controllers
         public void PutPartOnWarehouse(WarehousePartBindingModel model)
         {
             _service.PutPartOnWarehouse(model);
+        }
+
+        [HttpGet]
+        public IHttpActionResult GetInfo()
+        {
+            ReflectionService service = new ReflectionService();
+            var list = service.GetInfoByAssembly();
+            if (list == null)
+            {
+                InternalServerError(new Exception("Нет данных"));
+            }
+            return Ok(list);
         }
     }
 }
