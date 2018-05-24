@@ -4,6 +4,7 @@ using AbstractSanitaryService.Interfaces;
 using AbstractSanitaryService.ViewModels;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace AbstractSanitaryService.ImplementationsList
 {
@@ -18,48 +19,38 @@ namespace AbstractSanitaryService.ImplementationsList
 
         public List<PlumberViewModel> GetList()
         {
-            List<PlumberViewModel> result = new List<PlumberViewModel>();
-            for (int i = 0; i < source.Plumbers.Count; ++i)
-            {
-                result.Add(new PlumberViewModel
+            List<PlumberViewModel> result = source.Plumbers
+                .Select(rec => new PlumberViewModel
                 {
-                    Id = source.Plumbers[i].Id,
-                    PlumberFIO = source.Plumbers[i].PlumberFIO
-                });
-            }
+                    Id = rec.Id,
+                    PlumberFIO = rec.PlumberFIO
+                })
+                .ToList();
             return result;
         }
 
         public PlumberViewModel GetElement(int id)
         {
-            for (int i = 0; i < source.Plumbers.Count; ++i)
+            Plumber element = source.Plumbers.FirstOrDefault(rec => rec.Id == id);
+            if (element != null)
             {
-                if (source.Plumbers[i].Id == id)
+                return new PlumberViewModel
                 {
-                    return new PlumberViewModel
-                    {
-                        Id = source.Plumbers[i].Id,
-                        PlumberFIO = source.Plumbers[i].PlumberFIO
-                    };
-                }
+                    Id = element.Id,
+                    PlumberFIO = element.PlumberFIO
+                };
             }
             throw new Exception("Элемент не найден");
         }
 
         public void AddElement(PlumberBindingModel model)
         {
-            int maxId = 0;
-            for (int i = 0; i < source.Plumbers.Count; ++i)
+            Plumber element = source.Plumbers.FirstOrDefault(rec => rec.PlumberFIO == model.PlumberFIO);
+            if (element != null)
             {
-                if (source.Plumbers[i].Id > maxId)
-                {
-                    maxId = source.Plumbers[i].Id;
-                }
-                if (source.Plumbers[i].PlumberFIO == model.PlumberFIO)
-                {
-                    throw new Exception("Уже есть сантехник с таким ФИО");
-                }
+                throw new Exception("Уже есть сантехник с таким ФИО");
             }
+            int maxId = source.Plumbers.Count > 0 ? source.Plumbers.Max(rec => rec.Id) : 0;
             source.Plumbers.Add(new Plumber
             {
                 Id = maxId + 1,
@@ -69,37 +60,31 @@ namespace AbstractSanitaryService.ImplementationsList
 
         public void UpdElement(PlumberBindingModel model)
         {
-            int index = -1;
-            for (int i = 0; i < source.Plumbers.Count; ++i)
+            Plumber element = source.Plumbers.FirstOrDefault(rec =>
+                                        rec.PlumberFIO == model.PlumberFIO && rec.Id != model.Id);
+            if (element != null)
             {
-                if (source.Plumbers[i].Id == model.Id)
-                {
-                    index = i;
-                }
-                if (source.Plumbers[i].PlumberFIO == model.PlumberFIO &&
-                    source.Plumbers[i].Id != model.Id)
-                {
-                    throw new Exception("Уже есть сантехник с таким ФИО");
-                }
+                throw new Exception("Уже есть сантехник с таким ФИО");
             }
-            if (index == -1)
+            element = source.Plumbers.FirstOrDefault(rec => rec.Id == model.Id);
+            if (element == null)
             {
                 throw new Exception("Элемент не найден");
             }
-            source.Plumbers[index].PlumberFIO = model.PlumberFIO;
+            element.PlumberFIO = model.PlumberFIO;
         }
 
         public void DelElement(int id)
         {
-            for (int i = 0; i < source.Plumbers.Count; ++i)
+            Plumber element = source.Plumbers.FirstOrDefault(rec => rec.Id == id);
+            if (element != null)
             {
-                if (source.Plumbers[i].Id == id)
-                {
-                    source.Plumbers.RemoveAt(i);
-                    return;
-                }
+                source.Plumbers.Remove(element);
             }
-            throw new Exception("Элемент не найден");
+            else
+            {
+                throw new Exception("Элемент не найден");
+            }
         }
     }
 }
