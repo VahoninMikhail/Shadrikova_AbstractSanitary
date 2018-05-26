@@ -1,4 +1,4 @@
-﻿using AbstractSanitaryService.ImplementationsList;
+﻿using AbstractSanitaryService.ImplementationsBD;
 using AbstractSanitaryService.Interfaces;
 using System;
 using System.Windows;
@@ -24,12 +24,12 @@ namespace AbstractSanitaryWpfApp
         public static IUnityContainer BuildUnityContainer()
         {
             var currentContainer = new UnityContainer();
-            currentContainer.RegisterType<ICustomerService, CustomerServiceList>(new HierarchicalLifetimeManager());
-            currentContainer.RegisterType<IPartService, PartServiceList>(new HierarchicalLifetimeManager());
-            currentContainer.RegisterType<IPlumberService, PlumberServiceList>(new HierarchicalLifetimeManager());
-            currentContainer.RegisterType<IItemService, ItemServiceList>(new HierarchicalLifetimeManager());
-            currentContainer.RegisterType<IWarehouseService, WarehouseServiceList>(new HierarchicalLifetimeManager());
-            currentContainer.RegisterType<IBasicService, BasicServiceList>(new HierarchicalLifetimeManager());
+            currentContainer.RegisterType<ICustomerService, CustomerServiceBD>(new HierarchicalLifetimeManager());
+            currentContainer.RegisterType<IPartService, PartServiceBD>(new HierarchicalLifetimeManager());
+            currentContainer.RegisterType<IPlumberService, PlumberServiceBD>(new HierarchicalLifetimeManager());
+            currentContainer.RegisterType<IItemService, ItemServiceBD>(new HierarchicalLifetimeManager());
+            currentContainer.RegisterType<IWarehouseService, WarehouseServiceBD>(new HierarchicalLifetimeManager());
+            currentContainer.RegisterType<IBasicService, BasicServiceBD>(new HierarchicalLifetimeManager());
 
             return currentContainer;
         }

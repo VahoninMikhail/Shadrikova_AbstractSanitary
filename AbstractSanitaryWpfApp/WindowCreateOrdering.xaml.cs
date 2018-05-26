@@ -116,7 +116,7 @@ namespace AbstractSanitaryWpfApp
                     CustomerId = ((CustomerViewModel)comboBoxCustomer.SelectedItem).Id,
                     ItemId = ((ItemViewModel)comboBoxItem.SelectedItem).Id,
                     Count = Convert.ToInt32(textBoxCount.Text),
-                    Sum = Convert.ToInt32(textBoxSum.Text)
+                    Sum = Convert.ToDecimal(textBoxSum.Text)
                 });
                 MessageBox.Show("Сохранение прошло успешно", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
                 DialogResult = true;
