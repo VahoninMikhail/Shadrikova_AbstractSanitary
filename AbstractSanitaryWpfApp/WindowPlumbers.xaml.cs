@@ -1,11 +1,9 @@
-﻿using AbstractSanitaryService.Interfaces;
+﻿using AbstractSanitaryService.BindingModels;
 using AbstractSanitaryService.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
-using Unity;
-using Unity.Attributes;
 
 namespace AbstractSanitaryWpfApp
 {
@@ -14,16 +12,10 @@ namespace AbstractSanitaryWpfApp
     /// </summary>
     public partial class WindowPlumbers : Window
     {
-        [Dependency]
-        public new IUnityContainer Container { get; set; }
-
-        private readonly IPlumberService service;
-
-        public WindowPlumbers(IPlumberService service)
+        public WindowPlumbers()
         {
             InitializeComponent();
             Loaded += WindowPlumbers_Load;
-            this.service = service;
         }
 
         private void WindowPlumbers_Load(object sender, EventArgs e)
@@ -35,12 +27,20 @@ namespace AbstractSanitaryWpfApp
         {
             try
             {
-                List<PlumberViewModel> list = service.GetList();
-                if (list != null)
+                var response = APIClient.GetRequest("api/Plumber/GetList");
+                if (response.Result.IsSuccessStatusCode)
                 {
-                    dataGridViewPlumbers.ItemsSource = list;
-                    dataGridViewPlumbers.Columns[0].Visibility = Visibility.Hidden;
-                    dataGridViewPlumbers.Columns[1].Width = DataGridLength.Auto;
+                    List<PlumberViewModel> list = APIClient.GetElement<List<PlumberViewModel>>(response);
+                    if (list != null)
+                    {
+                        dataGridViewPlumbers.ItemsSource = list;
+                        dataGridViewPlumbers.Columns[0].Visibility = Visibility.Hidden;
+                        dataGridViewPlumbers.Columns[1].Width = DataGridLength.Auto;
+                    }
+                }
+                else
+                {
+                    throw new Exception(APIClient.GetError(response));
                 }
             }
             catch (Exception ex)
@@ -51,19 +51,19 @@ namespace AbstractSanitaryWpfApp
 
         private void buttonAdd_Click(object sender, EventArgs e)
         {
-            var form = Container.Resolve<WindowPlumber>();
+            var form = new WindowPlumber();
             if (form.ShowDialog() == true)
-                LoadData();
+            LoadData();
         }
 
         private void buttonUpd_Click(object sender, EventArgs e)
         {
             if (dataGridViewPlumbers.SelectedItem != null)
             {
-                var form = Container.Resolve<WindowPlumber>();
-                form.ID = ((PlumberViewModel)dataGridViewPlumbers.SelectedItem).Id;
+                var form = new WindowPlumber();
+                form.Id = ((PlumberViewModel)dataGridViewPlumbers.SelectedItem).Id;
                 if (form.ShowDialog() == true)
-                    LoadData();
+                LoadData();
             }
         }
 
@@ -71,13 +71,16 @@ namespace AbstractSanitaryWpfApp
         {
             if (dataGridViewPlumbers.SelectedItem != null)
             {
-                if (MessageBox.Show("Удалить запись?", "Внимание",
-                    MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+                if (MessageBox.Show("Удалить запись?", "Внимание", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
                 {
                     int id = ((PlumberViewModel)dataGridViewPlumbers.SelectedItem).Id;
                     try
                     {
-                        service.DelElement(id);
+                        var response = APIClient.PostRequest("api/Plumber/DelElement", new CustomerBindingModel { Id = id });
+                        if (!response.Result.IsSuccessStatusCode)
+                        {
+                            throw new Exception(APIClient.GetError(response));
+                        }
                     }
                     catch (Exception ex)
                     {

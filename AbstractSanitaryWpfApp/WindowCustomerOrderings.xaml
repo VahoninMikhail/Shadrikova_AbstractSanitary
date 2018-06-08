@@ -6,20 +6,22 @@
         xmlns:local="clr-namespace:AbstractSanitaryWpfApp"
         xmlns:rv="clr-namespace:Microsoft.Reporting.WinForms;assembly=Microsoft.ReportViewer.WinForms"
         mc:Ignorable="d"
-        Title="WindowCustomerOrderings" Height="450" Width="800">
+        Title="Заказы клиентов" Height="450" Width="800">
     <Grid>
-        <DockPanel HorizontalAlignment="Left" Height="66" LastChildFill="False" VerticalAlignment="Top" Width="792">
+        <DockPanel HorizontalAlignment="Left" Height="28" LastChildFill="False" VerticalAlignment="Top" Width="792">
             <DockPanel.Background>
                 <SolidColorBrush Color="{DynamicResource {x:Static SystemColors.GradientInactiveCaptionColorKey}}"/>
             </DockPanel.Background>
-            <Label Content="С" HorizontalAlignment="Left" VerticalAlignment="Top" RenderTransformOrigin="0.471,0.288" Height="35" Width="30"/>
-            <DatePicker x:Name="dateTimePickerFrom" HorizontalAlignment="Left" VerticalAlignment="Top" Width="126" Height="24" DisplayDateStart="1753-01-01" DisplayDateEnd="9998-12-31" SelectedDateFormat="Long"/>
-            <Label Content="по" HorizontalAlignment="Left" VerticalAlignment="Top"/>
-            <DatePicker x:Name="dateTimePickerTo" HorizontalAlignment="Left" VerticalAlignment="Top" Width="135" DisplayDateEnd="9998-12-31" DisplayDateStart="1753-01-01" SelectedDateFormat="Long"/>
         </DockPanel>
-        <Button x:Name="buttonMake" Content="Сформировать" HorizontalAlignment="Left" VerticalAlignment="Top" Width="111" Margin="346,1,0,0" Height="24" Click="buttonMake_Click"/>
-        <Button x:Name="buttonToPdf" Content="в PDF" HorizontalAlignment="Left" VerticalAlignment="Top" Width="107" Margin="500,0,0,0" Height="24" Click="buttonToPdf_Click"/>
-        <WindowsFormsHost HorizontalAlignment="Left" Height="353" Margin="0,66,0,0" VerticalAlignment="Top" Width="792">
+        <Label Content="С" HorizontalAlignment="Left" VerticalAlignment="Top" RenderTransformOrigin="0.471,0.288" Height="35" Width="30" Margin="0,0,0,-7"/>
+        <DatePicker x:Name="dateTimePickerFrom" HorizontalAlignment="Right" VerticalAlignment="Top" Width="126" Height="24" DisplayDateStart="1753-01-01" DisplayDateEnd="9998-12-31" SelectedDateFormat="Long" Margin="0,0,637,0"/>
+        <Label Content="по" HorizontalAlignment="Left" VerticalAlignment="Top" RenderTransformOrigin="7.896,0.519" Margin="160,2,0,0"/>
+        <DatePicker x:Name="dateTimePickerTo" HorizontalAlignment="Left" VerticalAlignment="Top" Width="135" DisplayDateEnd="9998-12-31" DisplayDateStart="1753-01-01" SelectedDateFormat="Long" Margin="189,0,0,0"/>
+
+        <Button x:Name="buttonMake" Content="Сформировать" HorizontalAlignment="Left" VerticalAlignment="Top" Width="112" Height="24" Click="buttonMake_Click" Margin="364,0,0,0"/>
+        <Button x:Name="buttonToPdf" Content="в PDF" HorizontalAlignment="Left" Width="107" Click="buttonToPdf_Click" Height="24" VerticalAlignment="Top" Margin="515,0,0,0"/>
+
+        <WindowsFormsHost HorizontalAlignment="Left" Height="386" Margin="0,33,0,0" VerticalAlignment="Top" Width="792">
             <rv:ReportViewer x:Name ="reportViewer"/>
         </WindowsFormsHost>
     </Grid>

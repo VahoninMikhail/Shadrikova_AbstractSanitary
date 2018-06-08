@@ -1,10 +1,9 @@
 ﻿using AbstractSanitaryService.BindingModels;
-using AbstractSanitaryService.Interfaces;
 using AbstractSanitaryService.ViewModels;
 using System;
+using System.Net.Http;
+using System.Threading.Tasks;
 using System.Windows;
-using Unity;
-using Unity.Attributes;
 
 namespace AbstractSanitaryWpfApp
 {
@@ -13,20 +12,14 @@ namespace AbstractSanitaryWpfApp
     /// </summary>
     public partial class WindowPart : Window
     {
-        [Dependency]
-        public new IUnityContainer Container { get; set; }
-
-        public int ID { set { id = value; } }
-
-        private readonly IPartService service;
+        public int Id { set { id = value; } }
 
         private int? id;
 
-        public WindowPart(IPartService service)
+        public WindowPart()
         {
             InitializeComponent();
             Loaded += WindowPart_Load;
-            this.service = service;
         }
 
         private void WindowPart_Load(object sender, EventArgs e)
@@ -35,10 +28,15 @@ namespace AbstractSanitaryWpfApp
             {
                 try
                 {
-                    PartViewModel view = service.GetElement(id.Value);
-                    if (view != null)
+                    var response = APIClient.GetRequest("api/Part/Get/" + id.Value);
+                    if (response.Result.IsSuccessStatusCode)
                     {
-                        textBoxName.Text = view.PartName;
+                        var part = APIClient.GetElement<PartViewModel>(response);
+                        textBoxName.Text = part.PartName;
+                    }
+                    else
+                    {
+                        throw new Exception(APIClient.GetError(response));
                     }
                 }
                 catch (Exception ex)
@@ -52,14 +50,15 @@ namespace AbstractSanitaryWpfApp
         {
             if (string.IsNullOrEmpty(textBoxName.Text))
             {
-                MessageBox.Show("Заполните название", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("Введите название", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
             try
             {
+                Task<HttpResponseMessage> response;
                 if (id.HasValue)
                 {
-                    service.UpdElement(new PartBindingModel
+                    response = APIClient.PostRequest("api/Part/UpdElement", new PartBindingModel
                     {
                         Id = id.Value,
                         PartName = textBoxName.Text
@@ -67,14 +66,21 @@ namespace AbstractSanitaryWpfApp
                 }
                 else
                 {
-                    service.AddElement(new PartBindingModel
+                    response = APIClient.PostRequest("api/Part/AddElement", new PartBindingModel
                     {
                         PartName = textBoxName.Text
                     });
                 }
-                MessageBox.Show("Сохранение прошло успешно", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
-                DialogResult = true;
-                Close();
+                if (response.Result.IsSuccessStatusCode)
+                {
+                    MessageBox.Show("Сохранение прошло успешно", "Сообщение", MessageBoxButton.OK, MessageBoxImage.Information);
+                    DialogResult = true;
+                    Close();
+                }
+                else
+                {
+                    throw new Exception(APIClient.GetError(response));
+                }
             }
             catch (Exception ex)
             {

@@ -1,11 +1,5 @@
-﻿using AbstractSanitaryService;
-using AbstractSanitaryService.ImplementationsBD;
-using AbstractSanitaryService.Interfaces;
-using System;
-using System.Data.Entity;
+﻿using System;
 using System.Windows;
-using Unity;
-using Unity.Lifetime;
 
 namespace AbstractSanitaryWpfApp
 {
@@ -17,25 +11,9 @@ namespace AbstractSanitaryWpfApp
         [STAThread]
         public static void Main()
         {
-            var container = BuildUnityContainer();
-
+            APIClient.Connect();
             var application = new App();
-            application.Run(container.Resolve<WindowBasic>());
-        }
-
-        public static IUnityContainer BuildUnityContainer()
-        {
-            var currentContainer = new UnityContainer();
-            currentContainer.RegisterType<DbContext, AbstractDbContext>(new HierarchicalLifetimeManager());
-            currentContainer.RegisterType<ICustomerService, CustomerServiceBD>(new HierarchicalLifetimeManager());
-            currentContainer.RegisterType<IPartService, PartServiceBD>(new HierarchicalLifetimeManager());
-            currentContainer.RegisterType<IPlumberService, PlumberServiceBD>(new HierarchicalLifetimeManager());
-            currentContainer.RegisterType<IItemService, ItemServiceBD>(new HierarchicalLifetimeManager());
-            currentContainer.RegisterType<IWarehouseService, WarehouseServiceBD>(new HierarchicalLifetimeManager());
-            currentContainer.RegisterType<IBasicService, BasicServiceBD>(new HierarchicalLifetimeManager());
-            currentContainer.RegisterType<IReportService, ReportServiceBD>(new HierarchicalLifetimeManager());
-
-            return currentContainer;
+            application.Run(new WindowBasic());
         }
     }
 }

@@ -1,11 +1,9 @@
-﻿using AbstractSanitaryService.Interfaces;
+﻿using AbstractSanitaryService.BindingModels;
 using AbstractSanitaryService.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
-using Unity;
-using Unity.Attributes;
 
 namespace AbstractSanitaryWpfApp
 {
@@ -14,16 +12,10 @@ namespace AbstractSanitaryWpfApp
     /// </summary>
     public partial class WindowCustomers : Window
     {
-        [Dependency]
-        public new IUnityContainer Container { get; set; }
-
-        private readonly ICustomerService service;
-
-        public WindowCustomers(ICustomerService service)
+        public WindowCustomers()
         {
             InitializeComponent();
             Loaded += WindowCustomers_Load;
-            this.service = service;
         }
 
         private void WindowCustomers_Load(object sender, EventArgs e)
@@ -35,12 +27,20 @@ namespace AbstractSanitaryWpfApp
         {
             try
             {
-                List<CustomerViewModel> list = service.GetList();
-                if (list != null)
+                var response = APIClient.GetRequest("api/Customer/GetList");
+                if (response.Result.IsSuccessStatusCode)
                 {
-                    dataGridViewCustomers.ItemsSource = list;
-                    dataGridViewCustomers.Columns[0].Visibility = Visibility.Hidden;
-                    dataGridViewCustomers.Columns[1].Width = DataGridLength.Auto;
+                    List<CustomerViewModel> list = APIClient.GetElement<List<CustomerViewModel>>(response);
+                    if (list != null)
+                    {
+                        dataGridViewCustomers.ItemsSource = list;
+                        dataGridViewCustomers.Columns[0].Visibility = Visibility.Hidden;
+                        dataGridViewCustomers.Columns[1].Width = DataGridLength.Auto;
+                    }
+                }
+                else
+                {
+                    throw new Exception(APIClient.GetError(response));
                 }
             }
             catch (Exception ex)
@@ -51,7 +51,7 @@ namespace AbstractSanitaryWpfApp
 
         private void buttonAdd_Click(object sender, EventArgs e)
         {
-            var form = Container.Resolve<WindowCustomer>();
+            var form = new WindowCustomer();
             if (form.ShowDialog() == true)
             {
                 LoadData();
@@ -62,8 +62,8 @@ namespace AbstractSanitaryWpfApp
         {
             if (dataGridViewCustomers.SelectedItem != null)
             {
-                var form = Container.Resolve<WindowCustomer>();
-                form.ID = ((CustomerViewModel)dataGridViewCustomers.SelectedItem).Id;
+                var form = new WindowCustomer();
+                form.Id = ((CustomerViewModel)dataGridViewCustomers.SelectedItem).Id;
                 if (form.ShowDialog() == true)
                 {
                     LoadData();
@@ -81,7 +81,11 @@ namespace AbstractSanitaryWpfApp
                     int id = ((CustomerViewModel)dataGridViewCustomers.SelectedItem).Id;
                     try
                     {
-                        service.DelElement(id);
+                        var response = APIClient.PostRequest("api/Customer/DelElement", new CustomerBindingModel { Id = id });
+                        if (!response.Result.IsSuccessStatusCode)
+                        {
+                            throw new Exception(APIClient.GetError(response));
+                        }
                     }
                     catch (Exception ex)
                     {

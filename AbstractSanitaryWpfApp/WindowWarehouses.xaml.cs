@@ -1,11 +1,9 @@
-﻿using AbstractSanitaryService.Interfaces;
+﻿using AbstractSanitaryService.BindingModels;
 using AbstractSanitaryService.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
-using Unity;
-using Unity.Attributes;
 
 namespace AbstractSanitaryWpfApp
 {
@@ -14,16 +12,10 @@ namespace AbstractSanitaryWpfApp
     /// </summary>
     public partial class WindowWarehouses : Window
     {
-        [Dependency]
-        public new IUnityContainer Container { get; set; }
-
-        private readonly IWarehouseService service;
-
-        public WindowWarehouses(IWarehouseService service)
+        public WindowWarehouses()
         {
             InitializeComponent();
             Loaded += WindowWarehouses_Load;
-            this.service = service;
         }
 
         private void WindowWarehouses_Load(object sender, EventArgs e)
@@ -35,12 +27,16 @@ namespace AbstractSanitaryWpfApp
         {
             try
             {
-                List<WarehouseViewModel> list = service.GetList();
-                if (list != null)
+                var response = APIClient.GetRequest("api/Warehouse/GetList");
+                if (response.Result.IsSuccessStatusCode)
                 {
-                    dataGridViewWarehouses.ItemsSource = list;
-                    dataGridViewWarehouses.Columns[0].Visibility = Visibility.Hidden;
-                    dataGridViewWarehouses.Columns[1].Width = DataGridLength.Auto;
+                    List<WarehouseViewModel> list = APIClient.GetElement<List<WarehouseViewModel>>(response);
+                    if (list != null)
+                    {
+                        dataGridViewWarehouses.ItemsSource = list;
+                        dataGridViewWarehouses.Columns[0].Visibility = Visibility.Hidden;
+                        dataGridViewWarehouses.Columns[1].Width = DataGridLength.Auto;
+                    }
                 }
             }
             catch (Exception ex)
@@ -51,17 +47,17 @@ namespace AbstractSanitaryWpfApp
 
         private void buttonAdd_Click(object sender, EventArgs e)
         {
-            var form = Container.Resolve<WindowWarehouse>();
+            var form = new WindowWarehouse();
             if (form.ShowDialog() == true)
-                LoadData();
+            LoadData();
         }
 
         private void buttonUpd_Click(object sender, EventArgs e)
         {
             if (dataGridViewWarehouses.SelectedItem != null)
             {
-                var form = Container.Resolve<WindowWarehouse>();
-                form.ID = ((WarehouseViewModel)dataGridViewWarehouses.SelectedItem).Id;
+                var form = new WindowWarehouse();
+                form.Id = ((WarehouseViewModel)dataGridViewWarehouses.SelectedItem).Id;
                 if (form.ShowDialog() == true)
                 {
                     LoadData();
@@ -73,13 +69,16 @@ namespace AbstractSanitaryWpfApp
         {
             if (dataGridViewWarehouses.SelectedItem != null)
             {
-                if (MessageBox.Show("Удалить запись?", "Внимание",
-                    MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+                if (MessageBox.Show("Удалить запись?", "Внимание", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
                 {
                     int id = ((WarehouseViewModel)dataGridViewWarehouses.SelectedItem).Id;
                     try
                     {
-                        service.DelElement(id);
+                        var response = APIClient.PostRequest("api/Warehouse/DelElement", new CustomerBindingModel { Id = id });
+                        if (!response.Result.IsSuccessStatusCode)
+                        {
+                            throw new Exception(APIClient.GetError(response));
+                        }
                     }
                     catch (Exception ex)
                     {

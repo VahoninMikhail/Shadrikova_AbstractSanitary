@@ -1,11 +1,8 @@
 ﻿using AbstractSanitaryService.BindingModels;
-using AbstractSanitaryService.Interfaces;
 using AbstractSanitaryService.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Windows;
-using Unity;
-using Unity.Attributes;
 
 namespace AbstractSanitaryWpfApp
 {
@@ -14,43 +11,47 @@ namespace AbstractSanitaryWpfApp
     /// </summary>
     public partial class WindowPutOnWarehouse : Window
     {
-        [Dependency]
-        public new IUnityContainer Container { get; set; }
-
-        private readonly IWarehouseService serviceWarehouse;
-
-        private readonly IPartService servicePart;
-
-        private readonly IBasicService serviceBasic;
-
-        public WindowPutOnWarehouse(IWarehouseService serviceW, IPartService serviceP, IBasicService serviceB)
+        public WindowPutOnWarehouse()
         {
             InitializeComponent();
             Loaded += WindowPutOnWarehouse_Load;
-            this.serviceWarehouse = serviceW;
-            this.servicePart = serviceP;
-            this.serviceBasic = serviceB;
         }
 
         private void WindowPutOnWarehouse_Load(object sender, EventArgs e)
         {
             try
             {
-                List<PartViewModel> listPart = servicePart.GetList();
-                if (listPart != null)
+                var responseP = APIClient.GetRequest("api/Part/GetList");
+                if (responseP.Result.IsSuccessStatusCode)
                 {
-                    comboBoxPart.DisplayMemberPath = "PartName";
-                    comboBoxPart.SelectedValuePath = "Id";
-                    comboBoxPart.ItemsSource = listPart;
-                    comboBoxPart.SelectedItem = null;
+                    List<PartViewModel> list = APIClient.GetElement<List<PartViewModel>>(responseP);
+                    if (list != null)
+                    {
+                        comboBoxPart.DisplayMemberPath = "PartName";
+                        comboBoxPart.SelectedValuePath = "Id";
+                        comboBoxPart.ItemsSource = list;
+                        comboBoxPart.SelectedItem = null;
+                    }
                 }
-                List<WarehouseViewModel> listWarehouse = serviceWarehouse.GetList();
-                if (listWarehouse != null)
+                else
                 {
-                    comboBoxWarehouse.DisplayMemberPath = "WarehouseName";
-                    comboBoxWarehouse.SelectedValuePath = "Id";
-                    comboBoxWarehouse.ItemsSource = listWarehouse;
-                    comboBoxWarehouse.SelectedItem = null;
+                    throw new Exception(APIClient.GetError(responseP));
+                }
+                var responseW = APIClient.GetRequest("api/Warehouse/GetList");
+                if (responseW.Result.IsSuccessStatusCode)
+                {
+                    List<WarehouseViewModel> list = APIClient.GetElement<List<WarehouseViewModel>>(responseW);
+                    if (list != null)
+                    {
+                        comboBoxWarehouse.DisplayMemberPath = "WarehouseName";
+                        comboBoxWarehouse.SelectedValuePath = "Id";
+                        comboBoxWarehouse.ItemsSource = list;
+                        comboBoxWarehouse.SelectedItem = null;
+                    }
+                }
+                else
+                {
+                    throw new Exception(APIClient.GetError(responseP));
                 }
             }
             catch (Exception ex)
@@ -78,16 +79,22 @@ namespace AbstractSanitaryWpfApp
             }
             try
             {
-                serviceBasic.PutPartOnWarehouse(new WarehousePartBindingModel
+                var response = APIClient.PostRequest("api/Basic/PutPartOnWarehouse", new WarehousePartBindingModel
                 {
                     PartId = Convert.ToInt32(comboBoxPart.SelectedValue),
                     WarehouseId = Convert.ToInt32(comboBoxWarehouse.SelectedValue),
                     Count = Convert.ToInt32(textBoxCount.Text)
                 });
-                MessageBox.Show("Сохранение прошло успешно", "Информация",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-                DialogResult = true;
-                Close();
+                if (response.Result.IsSuccessStatusCode)
+                {
+                    MessageBox.Show("Сохранение прошло успешно", "Сообщение", MessageBoxButton.OK, MessageBoxImage.Information);
+                    DialogResult = true;
+                    Close();
+                }
+                else
+                {
+                    throw new Exception(APIClient.GetError(response));
+                }
             }
             catch (Exception ex)
             {

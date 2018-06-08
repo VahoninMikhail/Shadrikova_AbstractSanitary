@@ -1,11 +1,9 @@
-﻿using AbstractSanitaryService.Interfaces;
+﻿using AbstractSanitaryService.BindingModels;
 using AbstractSanitaryService.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
-using Unity;
-using Unity.Attributes;
 
 namespace AbstractSanitaryWpfApp
 {
@@ -14,16 +12,10 @@ namespace AbstractSanitaryWpfApp
     /// </summary>
     public partial class WindowParts : Window
     {
-        [Dependency]
-        public new IUnityContainer Container { get; set; }
-
-        private readonly IPartService service;
-
-        public WindowParts(IPartService service)
+        public WindowParts()
         {
             InitializeComponent();
             Loaded += WindowParts_Load;
-            this.service = service;
         }
 
         private void WindowParts_Load(object sender, EventArgs e)
@@ -35,12 +27,20 @@ namespace AbstractSanitaryWpfApp
         {
             try
             {
-                List<PartViewModel> list = service.GetList();
-                if (list != null)
+                var response = APIClient.GetRequest("api/Part/GetList");
+                if (response.Result.IsSuccessStatusCode)
                 {
-                    dataGridViewElements.ItemsSource = list;
-                    dataGridViewElements.Columns[0].Visibility = Visibility.Hidden;
-                    dataGridViewElements.Columns[1].Width = DataGridLength.Auto;
+                    List<PartViewModel> list = APIClient.GetElement<List<PartViewModel>>(response);
+                    if (list != null)
+                    {
+                        dataGridViewParts.ItemsSource = list;
+                        dataGridViewParts.Columns[0].Visibility = Visibility.Hidden;
+                        dataGridViewParts.Columns[1].Width = DataGridLength.Auto;
+                    }
+                }
+                else
+                {
+                    throw new Exception(APIClient.GetError(response));
                 }
             }
             catch (Exception ex)
@@ -51,33 +51,36 @@ namespace AbstractSanitaryWpfApp
 
         private void buttonAdd_Click(object sender, EventArgs e)
         {
-            var form = Container.Resolve<WindowPart>();
+            var form = new WindowPart();
             if (form.ShowDialog() == true)
-                LoadData();
+            LoadData();
         }
 
         private void buttonUpd_Click(object sender, EventArgs e)
         {
-            if (dataGridViewElements.SelectedItem != null)
+            if (dataGridViewParts.SelectedItem != null)
             {
-                var form = Container.Resolve<WindowPart>();
-                form.ID = ((PartViewModel)dataGridViewElements.SelectedItem).Id;
+                var form = new WindowPart();
+                form.Id = ((PartViewModel)dataGridViewParts.SelectedItem).Id;
                 if (form.ShowDialog() == true)
-                    LoadData();
+                LoadData();
             }
         }
 
         private void buttonDel_Click(object sender, EventArgs e)
         {
-            if (dataGridViewElements.SelectedItem != null)
+            if (dataGridViewParts.SelectedItem != null)
             {
-                if (MessageBox.Show("Удалить запись?", "Внимание",
-                    MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+                if (MessageBox.Show("Удалить запись?", "Внимание", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
                 {
-                    int id = ((PartViewModel)dataGridViewElements.SelectedItem).Id;
+                    int id = ((PartViewModel)dataGridViewParts.SelectedItem).Id;
                     try
                     {
-                        service.DelElement(id);
+                        var response = APIClient.PostRequest("api/Part/DelElement", new CustomerBindingModel { Id = id });
+                        if (!response.Result.IsSuccessStatusCode)
+                        {
+                            throw new Exception(APIClient.GetError(response));
+                        }
                     }
                     catch (Exception ex)
                     {

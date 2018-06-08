@@ -1,12 +1,9 @@
 ﻿using AbstractSanitaryService.BindingModels;
-using AbstractSanitaryService.Interfaces;
 using AbstractSanitaryService.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
-using Unity;
-using Unity.Attributes;
 
 namespace AbstractSanitaryWpfApp
 {
@@ -15,47 +12,49 @@ namespace AbstractSanitaryWpfApp
     /// </summary>
     public partial class WindowCreateOrdering : Window
     {
-        [Dependency]
-        public new IUnityContainer Container { get; set; }
-
-        private readonly ICustomerService serviceCustomer;
-
-        private readonly IItemService serviceItem;
-
-        private readonly IBasicService serviceBasic;
-
-
-        public WindowCreateOrdering(ICustomerService serviceC, IItemService serviceI, IBasicService serviceB)
+        public WindowCreateOrdering()
         {
             InitializeComponent();
             Loaded += WindowCreateOrdering_Load;
             comboBoxItem.SelectionChanged += comboBoxItem_SelectedIndexChanged;
-
             comboBoxItem.SelectionChanged += new SelectionChangedEventHandler(comboBoxItem_SelectedIndexChanged);
-            this.serviceCustomer = serviceC;
-            this.serviceItem = serviceI;
-            this.serviceBasic = serviceB;
         }
 
         private void WindowCreateOrdering_Load(object sender, EventArgs e)
         {
             try
             {
-                List<CustomerViewModel> listCustomer = serviceCustomer.GetList();
-                if (listCustomer != null)
+                var responseC = APIClient.GetRequest("api/Customer/GetList");
+                if (responseC.Result.IsSuccessStatusCode)
                 {
-                    comboBoxCustomer.DisplayMemberPath = "CustomerFIO";
-                    comboBoxCustomer.SelectedValuePath = "Id";
-                    comboBoxCustomer.ItemsSource = listCustomer;
-                    comboBoxItem.SelectedItem = null;
+                    List<CustomerViewModel> list = APIClient.GetElement<List<CustomerViewModel>>(responseC);
+                    if (list != null)
+                    {
+                        comboBoxCustomer.DisplayMemberPath = "CustomerFIO";
+                        comboBoxCustomer.SelectedValuePath = "Id";
+                        comboBoxCustomer.ItemsSource = list;
+                        comboBoxCustomer.SelectedItem = null;
+                    }
                 }
-                List<ItemViewModel> listItem = serviceItem.GetList();
-                if (listItem != null)
+                else
                 {
-                    comboBoxItem.DisplayMemberPath = "ItemName";
-                    comboBoxItem.SelectedValuePath = "Id";
-                    comboBoxItem.ItemsSource = listItem;
-                    comboBoxItem.SelectedItem = null;
+                    throw new Exception(APIClient.GetError(responseC));
+                }
+                var responseI = APIClient.GetRequest("api/Item/GetList");
+                if (responseI.Result.IsSuccessStatusCode)
+                {
+                    List<ItemViewModel> list = APIClient.GetElement<List<ItemViewModel>>(responseI);
+                    if (list != null)
+                    {
+                        comboBoxItem.DisplayMemberPath = "ItemName";
+                        comboBoxItem.SelectedValuePath = "Id";
+                        comboBoxItem.ItemsSource = list;
+                        comboBoxItem.SelectedItem = null;
+                    }
+                }
+                else
+                {
+                    throw new Exception(APIClient.GetError(responseI));
                 }
             }
             catch (Exception ex)
@@ -71,9 +70,17 @@ namespace AbstractSanitaryWpfApp
                 try
                 {
                     int id = ((ItemViewModel)comboBoxItem.SelectedItem).Id;
-                    ItemViewModel product = serviceItem.GetElement(id);
-                    int count = Convert.ToInt32(textBoxCount.Text);
-                    textBoxSum.Text = (count * product.Price).ToString();
+                    var responseI = APIClient.GetRequest("api/Item/Get/" + id);
+                    if (responseI.Result.IsSuccessStatusCode)
+                    {
+                        ItemViewModel mebel = APIClient.GetElement<ItemViewModel>(responseI);
+                        int count = Convert.ToInt32(textBoxCount.Text);
+                        textBoxSum.Text = (count * (int)mebel.Price).ToString();
+                    }
+                    else
+                    {
+                        throw new Exception(APIClient.GetError(responseI));
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -101,7 +108,7 @@ namespace AbstractSanitaryWpfApp
             }
             if (comboBoxCustomer.SelectedItem == null)
             {
-                MessageBox.Show("Выберите заказчика", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("Выберите клиента", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
             if (comboBoxItem.SelectedItem == null)
@@ -111,16 +118,23 @@ namespace AbstractSanitaryWpfApp
             }
             try
             {
-                serviceBasic.CreateOrdering(new OrderingBindingModel
+                var response = APIClient.PostRequest("api/Basic/CreateOrdering", new OrderingBindingModel
                 {
-                    CustomerId = ((CustomerViewModel)comboBoxCustomer.SelectedItem).Id,
-                    ItemId = ((ItemViewModel)comboBoxItem.SelectedItem).Id,
+                    CustomerId = Convert.ToInt32(comboBoxCustomer.SelectedItem),
+                    ItemId = Convert.ToInt32(comboBoxItem.SelectedItem),
                     Count = Convert.ToInt32(textBoxCount.Text),
                     Sum = Convert.ToDecimal(textBoxSum.Text)
                 });
-                MessageBox.Show("Сохранение прошло успешно", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
-                DialogResult = true;
-                Close();
+                if (response.Result.IsSuccessStatusCode)
+                {
+                    MessageBox.Show("Сохранение прошло успешно", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+                    DialogResult = true;
+                    Close();
+                }
+                else
+                {
+                    throw new Exception(APIClient.GetError(response));
+                }
             }
             catch (Exception ex)
             {

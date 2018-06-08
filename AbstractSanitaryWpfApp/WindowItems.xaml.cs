@@ -1,11 +1,9 @@
-﻿using AbstractSanitaryService.Interfaces;
+﻿using AbstractSanitaryService.BindingModels;
 using AbstractSanitaryService.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
-using Unity;
-using Unity.Attributes;
 
 namespace AbstractSanitaryWpfApp
 {
@@ -14,16 +12,10 @@ namespace AbstractSanitaryWpfApp
     /// </summary>
     public partial class WindowItems : Window
     {
-        [Dependency]
-        public new IUnityContainer Container { get; set; }
-
-        private readonly IItemService service;
-
-        public WindowItems(IItemService service)
+        public WindowItems()
         {
             InitializeComponent();
             Loaded += WindowItems_Load;
-            this.service = service;
         }
 
         private void WindowItems_Load(object sender, EventArgs e)
@@ -35,13 +27,21 @@ namespace AbstractSanitaryWpfApp
         {
             try
             {
-                List<ItemViewModel> list = service.GetList();
-                if (list != null)
+                var response = APIClient.GetRequest("api/Item/GetList");
+                if (response.Result.IsSuccessStatusCode)
                 {
-                    dataGridViewItems.ItemsSource = list;
-                    dataGridViewItems.Columns[0].Visibility = Visibility.Hidden;
-                    dataGridViewItems.Columns[1].Width = DataGridLength.Auto;
-                    dataGridViewItems.Columns[3].Visibility = Visibility.Hidden;
+                    List<ItemViewModel> list = APIClient.GetElement<List<ItemViewModel>>(response);
+                    if (list != null)
+                    {
+                        dataGridViewItems.ItemsSource = list;
+                        dataGridViewItems.Columns[0].Visibility = Visibility.Hidden;
+                        dataGridViewItems.Columns[1].Width = DataGridLength.Auto;
+                        dataGridViewItems.Columns[3].Visibility = Visibility.Hidden;
+                    }
+                }
+                else
+                {
+                    throw new Exception(APIClient.GetError(response));
                 }
             }
             catch (Exception ex)
@@ -52,19 +52,19 @@ namespace AbstractSanitaryWpfApp
 
         private void buttonAdd_Click(object sender, EventArgs e)
         {
-            var form = Container.Resolve<WindowItem>();
+            var form = new WindowItem();
             if (form.ShowDialog() == true)
-                LoadData();
+            LoadData();
         }
 
         private void buttonUpd_Click(object sender, EventArgs e)
         {
             if (dataGridViewItems.SelectedItem != null)
             {
-                var form = Container.Resolve<WindowItem>();
-                form.ID = ((ItemViewModel)dataGridViewItems.SelectedItem).Id;
+                var form = new WindowItem();
+                form.Id = ((ItemViewModel)dataGridViewItems.SelectedItem).Id;
                 if (form.ShowDialog() == true)
-                    LoadData();
+                LoadData();
             }
         }
 
@@ -72,14 +72,17 @@ namespace AbstractSanitaryWpfApp
         {
             if (dataGridViewItems.SelectedItem != null)
             {
-                if (MessageBox.Show("Удалить запись?", "Внимание",
-                MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+                if (MessageBox.Show("Удалить запись?", "Внимание", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
                 {
 
                     int id = ((ItemViewModel)dataGridViewItems.SelectedItem).Id;
                     try
                     {
-                        service.DelElement(id);
+                        var response = APIClient.PostRequest("api/Item/DelElement", new CustomerBindingModel { Id = id });
+                        if (!response.Result.IsSuccessStatusCode)
+                        {
+                            throw new Exception(APIClient.GetError(response));
+                        }
                     }
                     catch (Exception ex)
                     {

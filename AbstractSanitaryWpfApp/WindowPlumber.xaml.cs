@@ -1,10 +1,9 @@
 ﻿using AbstractSanitaryService.BindingModels;
-using AbstractSanitaryService.Interfaces;
 using AbstractSanitaryService.ViewModels;
 using System;
+using System.Net.Http;
+using System.Threading.Tasks;
 using System.Windows;
-using Unity;
-using Unity.Attributes;
 
 namespace AbstractSanitaryWpfApp
 {
@@ -13,20 +12,14 @@ namespace AbstractSanitaryWpfApp
     /// </summary>
     public partial class WindowPlumber : Window
     {
-        [Dependency]
-        public new IUnityContainer Container { get; set; }
-
-        public int ID { set { id = value; } }
-
-        private readonly IPlumberService service;
+        public int Id { set { id = value; } }
 
         private int? id;
 
-        public WindowPlumber(IPlumberService service)
+        public WindowPlumber()
         {
             InitializeComponent();
             Loaded += WindowPlumber_Load;
-            this.service = service;
         }
 
         private void WindowPlumber_Load(object sender, EventArgs e)
@@ -35,9 +28,16 @@ namespace AbstractSanitaryWpfApp
             {
                 try
                 {
-                    PlumberViewModel view = service.GetElement(id.Value);
-                    if (view != null)
-                        textBoxFullName.Text = view.PlumberFIO;
+                    var response = APIClient.GetRequest("api/Plumber/Get/" + id.Value);
+                    if (response.Result.IsSuccessStatusCode)
+                    {
+                        var plumber = APIClient.GetElement<PlumberViewModel>(response);
+                        textBoxFullName.Text = plumber.PlumberFIO;
+                    }
+                    else
+                    {
+                        throw new Exception(APIClient.GetError(response));
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -50,14 +50,15 @@ namespace AbstractSanitaryWpfApp
         {
             if (string.IsNullOrEmpty(textBoxFullName.Text))
             {
-                MessageBox.Show("Заполните ФИО", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("Введите ФИО", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
             try
             {
+                Task<HttpResponseMessage> response;
                 if (id.HasValue)
                 {
-                    service.UpdElement(new PlumberBindingModel
+                    response = APIClient.PostRequest("api/Plumber/UpdElement", new PlumberBindingModel
                     {
                         Id = id.Value,
                         PlumberFIO = textBoxFullName.Text
@@ -65,14 +66,21 @@ namespace AbstractSanitaryWpfApp
                 }
                 else
                 {
-                    service.AddElement(new PlumberBindingModel
+                    response = APIClient.PostRequest("api/Plumber/AddElement", new PlumberBindingModel
                     {
                         PlumberFIO = textBoxFullName.Text
                     });
                 }
-                MessageBox.Show("Сохранение прошло успешно", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
-                DialogResult = true;
-                Close();
+                if (response.Result.IsSuccessStatusCode)
+                {
+                    MessageBox.Show("Сохранение прошло успешно", "Сообщение", MessageBoxButton.OK, MessageBoxImage.Information);
+                    DialogResult = true;
+                    Close();
+                }
+                else
+                {
+                    throw new Exception(APIClient.GetError(response));
+                }
             }
             catch (Exception ex)
             {
