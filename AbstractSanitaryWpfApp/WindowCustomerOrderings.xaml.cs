@@ -1,11 +1,10 @@
 ﻿using AbstractSanitaryService.BindingModels;
-using AbstractSanitaryService.Interfaces;
+using AbstractSanitaryService.ViewModels;
 using Microsoft.Reporting.WinForms;
 using Microsoft.Win32;
 using System;
+using System.Collections.Generic;
 using System.Windows;
-using Unity;
-using Unity.Attributes;
 
 namespace AbstractSanitaryWpfApp
 {
@@ -14,15 +13,9 @@ namespace AbstractSanitaryWpfApp
     /// </summary>
     public partial class WindowCustomerOrderings : Window
     {
-        [Dependency]
-        public new IUnityContainer Container { get; set; }
-
-        private readonly IReportService service;
-
-        public WindowCustomerOrderings(IReportService service)
+        public WindowCustomerOrderings()
         {
             InitializeComponent();
-            this.service = service;
         }
 
         private void buttonMake_Click(object sender, EventArgs e)
@@ -34,18 +27,29 @@ namespace AbstractSanitaryWpfApp
             }
             try
             {
-                reportViewer.LocalReport.ReportEmbeddedResource = "AbstractSanitaryWpfApp.ReportCustomerOrdering.rdlc";
+                reportViewer.LocalReport.ReportEmbeddedResource = "MebelFactoryViewWpf.ReportCustomerOrderings.rdlc";
                 ReportParameter parameter = new ReportParameter("ReportParameterPeriod",
                                             "c " + Convert.ToDateTime(dateTimePickerFrom.SelectedDate).ToString("dd-MM") +
                                             " по " + Convert.ToDateTime(dateTimePickerTo.SelectedDate).ToString("dd-MM"));
                 reportViewer.LocalReport.SetParameters(parameter);
-                var dataSource = service.GetCustomerOrderings(new ReportBindingModel
+
+
+                var response = APIClient.PostRequest("api/Report/GetCustomerOrderings", new ReportBindingModel
                 {
                     DateFrom = dateTimePickerFrom.SelectedDate,
                     DateTo = dateTimePickerTo.SelectedDate
                 });
-                ReportDataSource source = new ReportDataSource("DataSetOrderings", dataSource);
-                reportViewer.LocalReport.DataSources.Add(source);
+                if (response.Result.IsSuccessStatusCode)
+                {
+                    var dataSource = APIClient.GetElement<List<CustomerOrderingsViewModel>>(response);
+                    ReportDataSource source = new ReportDataSource("DataSetOrderings", dataSource);
+                    reportViewer.LocalReport.DataSources.Add(source);
+                }
+                else
+                {
+                    throw new Exception(APIClient.GetError(response));
+                }
+
                 reportViewer.RefreshReport();
             }
             catch (Exception ex)
@@ -69,13 +73,20 @@ namespace AbstractSanitaryWpfApp
             {
                 try
                 {
-                    service.SaveCustomerOrderings(new ReportBindingModel
+                    var response = APIClient.PostRequest("api/Report/SaveCustomerOrderings", new ReportBindingModel
                     {
                         FileName = sfd.FileName,
                         DateFrom = dateTimePickerFrom.SelectedDate,
                         DateTo = dateTimePickerTo.SelectedDate
                     });
-                    MessageBox.Show("Выполнено", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                    if (response.Result.IsSuccessStatusCode)
+                    {
+                        MessageBox.Show("Выполнено", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    else
+                    {
+                        throw new Exception(APIClient.GetError(response));
+                    }
                 }
                 catch (Exception ex)
                 {

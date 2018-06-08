@@ -130,7 +130,7 @@ namespace AbstractSanitaryService.ImplementationsBD
             {
                 WarehouseName = warehouse.WarehouseName,
                 TotalCount = warehouseParList.Sum(r => r.Count),
-                Parts = warehouseParList.Select(r => new Tuple<string, int>(r.Part.PartName, r.Count))
+                Parts = warehouseParList.Select(r => new WarehousesPartLoadViewModel { PartName = r.Part.PartName, Count = r.Count }).ToList()
             })
                             .ToList();
         }
@@ -217,9 +217,9 @@ namespace AbstractSanitaryService.ImplementationsBD
 
                             foreach (var listElem in elem.Parts)
                             {
-                                excelcells.Value2 = listElem.Item1;
+                                excelcells.Value2 = listElem.PartName;
                                 excelcells.ColumnWidth = 10;
-                                excelcells.get_Offset(0, 1).Value2 = listElem.Item2;
+                                excelcells.get_Offset(0, 1).Value2 = listElem.Count;
                                 excelcells = excelcells.get_Offset(1, 0);
                             }
                         }

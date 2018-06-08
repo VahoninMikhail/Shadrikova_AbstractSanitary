@@ -1,11 +1,10 @@
 ﻿using AbstractSanitaryService.BindingModels;
-using AbstractSanitaryService.Interfaces;
 using AbstractSanitaryService.ViewModels;
 using System;
+using System.Net.Http;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using Unity;
-using Unity.Attributes;
 
 namespace AbstractSanitaryWpfApp
 {
@@ -14,20 +13,14 @@ namespace AbstractSanitaryWpfApp
     /// </summary>
     public partial class WindowWarehouse : Window
     {
-        [Dependency]
-        public new IUnityContainer Container { get; set; }
-
-        public int ID { set { id = value; } }
-
-        private readonly IWarehouseService service;
+        public int Id { set { id = value; } }
 
         private int? id;
 
-        public WindowWarehouse(IWarehouseService service)
+        public WindowWarehouse()
         {
             InitializeComponent();
             Loaded += WindowWarehouse_Load;
-            this.service = service;
         }
 
         private void WindowWarehouse_Load(object sender, EventArgs e)
@@ -36,11 +29,12 @@ namespace AbstractSanitaryWpfApp
             {
                 try
                 {
-                    WarehouseViewModel view = service.GetElement(id.Value);
-                    if (view != null)
+                    var response = APIClient.GetRequest("api/Warehouse/Get/" + id.Value);
+                    if (response.Result.IsSuccessStatusCode)
                     {
-                        textBoxName.Text = view.WarehouseName;
-                        dataGridViewWarehouse.ItemsSource = view.WarehouseParts;
+                        var warehouse = APIClient.GetElement<WarehouseViewModel>(response);
+                        textBoxName.Text = warehouse.WarehouseName;
+                        dataGridViewWarehouse.ItemsSource = warehouse.WarehouseParts;
                         dataGridViewWarehouse.Columns[0].Visibility = Visibility.Hidden;
                         dataGridViewWarehouse.Columns[1].Visibility = Visibility.Hidden;
                         dataGridViewWarehouse.Columns[2].Visibility = Visibility.Hidden;
@@ -58,14 +52,15 @@ namespace AbstractSanitaryWpfApp
         {
             if (string.IsNullOrEmpty(textBoxName.Text))
             {
-                MessageBox.Show("Заполните название", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("Введите название", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
             try
             {
+                Task<HttpResponseMessage> response;
                 if (id.HasValue)
                 {
-                    service.UpdElement(new WarehouseBindingModel
+                    response = APIClient.PostRequest("api/Warehouse/UpdElement", new WarehouseBindingModel
                     {
                         Id = id.Value,
                         WarehouseName = textBoxName.Text
@@ -73,14 +68,21 @@ namespace AbstractSanitaryWpfApp
                 }
                 else
                 {
-                    service.AddElement(new WarehouseBindingModel
+                    response = APIClient.PostRequest("api/Warehouse/AddElement", new WarehouseBindingModel
                     {
                         WarehouseName = textBoxName.Text
                     });
                 }
-                MessageBox.Show("Сохранение прошло успешно", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
-                DialogResult = true;
-                Close();
+                if (response.Result.IsSuccessStatusCode)
+                {
+                    MessageBox.Show("Сохранение прошло успешно", "Сообщение", MessageBoxButton.OK, MessageBoxImage.Information);
+                    DialogResult = true;
+                    Close();
+                }
+                else
+                {
+                    throw new Exception(APIClient.GetError(response));
+                }
             }
             catch (Exception ex)
             {

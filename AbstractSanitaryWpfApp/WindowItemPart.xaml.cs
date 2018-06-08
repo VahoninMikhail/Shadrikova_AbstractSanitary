@@ -1,10 +1,7 @@
-﻿using AbstractSanitaryService.Interfaces;
-using AbstractSanitaryService.ViewModels;
+﻿using AbstractSanitaryService.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Windows;
-using Unity;
-using Unity.Attributes;
 
 namespace AbstractSanitaryWpfApp
 {
@@ -13,33 +10,31 @@ namespace AbstractSanitaryWpfApp
     /// </summary>
     public partial class WindowItemPart : Window
     {
-        [Dependency]
-        public new IUnityContainer Container { get; set; }
-
         public ItemPartViewModel Model { set { model = value; } get { return model; } }
-
-        private readonly IPartService service;
 
         private ItemPartViewModel model;
 
-        public WindowItemPart(IPartService service)
+        public WindowItemPart()
         {
             InitializeComponent();
             Loaded += WindowItemPart_Load;
-            this.service = service;
         }
 
         private void WindowItemPart_Load(object sender, EventArgs e)
         {
-            List<PartViewModel> list = service.GetList();
             try
             {
-                if (list != null)
+                var response = APIClient.GetRequest("api/Part/GetList");
+                if (response.Result.IsSuccessStatusCode)
                 {
                     comboBoxPart.DisplayMemberPath = "PartName";
                     comboBoxPart.SelectedValuePath = "Id";
-                    comboBoxPart.ItemsSource = list;
+                    comboBoxPart.ItemsSource = APIClient.GetElement<List<PartViewModel>>(response);
                     comboBoxPart.SelectedItem = null;
+                }
+                else
+                {
+                    throw new Exception(APIClient.GetError(response));
                 }
             }
             catch (Exception ex)
@@ -50,13 +45,7 @@ namespace AbstractSanitaryWpfApp
             if (model != null)
             {
                 comboBoxPart.IsEnabled = false;
-                foreach (PartViewModel item in list)
-                {
-                    if (item.PartName == model.PartName)
-                    {
-                        comboBoxPart.SelectedItem = item;
-                    }
-                }
+                comboBoxPart.SelectedValue = model.PartId;
                 textBoxCount.Text = model.Count.ToString();
             }
         }

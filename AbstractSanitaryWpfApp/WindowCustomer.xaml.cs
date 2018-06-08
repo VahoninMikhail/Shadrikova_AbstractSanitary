@@ -1,10 +1,9 @@
 ﻿using AbstractSanitaryService.BindingModels;
-using AbstractSanitaryService.Interfaces;
 using AbstractSanitaryService.ViewModels;
 using System;
+using System.Net.Http;
+using System.Threading.Tasks;
 using System.Windows;
-using Unity;
-using Unity.Attributes;
 
 namespace AbstractSanitaryWpfApp
 {
@@ -13,20 +12,14 @@ namespace AbstractSanitaryWpfApp
     /// </summary>
     public partial class WindowCustomer : Window
     {
-        [Dependency]
-        public new IUnityContainer Container { get; set; }
-
-        public int ID { set { id = value; } }
-
-        private readonly ICustomerService service;
+        public int Id { set { id = value; } }
 
         private int? id;
 
-        public WindowCustomer(ICustomerService service)
+        public WindowCustomer()
         {
             InitializeComponent();
             Loaded += WindowCustomer_Load;
-            this.service = service;
         }
 
         private void WindowCustomer_Load(object sender, EventArgs e)
@@ -35,9 +28,16 @@ namespace AbstractSanitaryWpfApp
             {
                 try
                 {
-                    CustomerViewModel view = service.GetElement(id.Value);
-                    if (view != null)
-                        textBoxFIO.Text = view.CustomerFIO;
+                    var response = APIClient.GetRequest("api/Customer/Get/" + id.Value);
+                    if (response.Result.IsSuccessStatusCode)
+                    {
+                        var customer = APIClient.GetElement<CustomerViewModel>(response);
+                        textBoxFIO.Text = customer.CustomerFIO;
+                    }
+                    else
+                    {
+                        throw new Exception(APIClient.GetError(response));
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -50,14 +50,15 @@ namespace AbstractSanitaryWpfApp
         {
             if (string.IsNullOrEmpty(textBoxFIO.Text))
             {
-                MessageBox.Show("Заполните ФИО", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("Введите ФИО", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
             try
             {
+                Task<HttpResponseMessage> response;
                 if (id.HasValue)
                 {
-                    service.UpdElement(new CustomerBindingModel
+                    response = APIClient.PostRequest("api/Customer/UpdElement", new CustomerBindingModel
                     {
                         Id = id.Value,
                         CustomerFIO = textBoxFIO.Text
@@ -65,14 +66,21 @@ namespace AbstractSanitaryWpfApp
                 }
                 else
                 {
-                    service.AddElement(new CustomerBindingModel
+                    response = APIClient.PostRequest("api/Customer/AddElement", new CustomerBindingModel
                     {
                         CustomerFIO = textBoxFIO.Text
                     });
                 }
-                MessageBox.Show("Сохранение прошло успешно", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
-                DialogResult = true;
-                Close();
+                if (response.Result.IsSuccessStatusCode)
+                {
+                    MessageBox.Show("Сохранение прошло успешно", "Сообщение", MessageBoxButton.OK, MessageBoxImage.Information);
+                    DialogResult = true;
+                    Close();
+                }
+                else
+                {
+                    throw new Exception(APIClient.GetError(response));
+                }
             }
             catch (Exception ex)
             {

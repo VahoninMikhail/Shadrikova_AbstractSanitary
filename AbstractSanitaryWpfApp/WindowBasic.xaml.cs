@@ -1,13 +1,10 @@
 ﻿using AbstractSanitaryService.BindingModels;
-using AbstractSanitaryService.Interfaces;
 using AbstractSanitaryService.ViewModels;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
-using Unity;
-using Unity.Attributes;
 
 namespace AbstractSanitaryWpfApp
 {
@@ -16,33 +13,32 @@ namespace AbstractSanitaryWpfApp
     /// </summary>
     public partial class WindowBasic : Window
     {
-        [Dependency]
-        public new IUnityContainer Container { get; set; }
-
-        private readonly IBasicService service;
-
-        private readonly IReportService reportService;
-
-        public WindowBasic(IBasicService service, IReportService reportService)
+        public WindowBasic()
         {
             InitializeComponent();
-            this.service = service;
-            this.reportService = reportService;
         }
 
         private void LoadData()
         {
             try
             {
-                List<OrderingViewModel> list = service.GetList();
-                if (list != null)
+                var response = APIClient.GetRequest("api/Basic/GetList");
+                if (response.Result.IsSuccessStatusCode)
                 {
-                    dataGridViewBasic.ItemsSource = list;
-                    dataGridViewBasic.Columns[0].Visibility = Visibility.Hidden;
-                    dataGridViewBasic.Columns[1].Visibility = Visibility.Hidden;
-                    dataGridViewBasic.Columns[3].Visibility = Visibility.Hidden;
-                    dataGridViewBasic.Columns[5].Visibility = Visibility.Hidden;
-                    dataGridViewBasic.Columns[1].Width = DataGridLength.Auto;
+                    List<OrderingViewModel> list = APIClient.GetElement<List<OrderingViewModel>>(response);
+                    if (list != null)
+                    {
+                        dataGridViewBasic.ItemsSource = list;
+                        dataGridViewBasic.Columns[0].Visibility = Visibility.Hidden;
+                        dataGridViewBasic.Columns[1].Visibility = Visibility.Hidden;
+                        dataGridViewBasic.Columns[3].Visibility = Visibility.Hidden;
+                        dataGridViewBasic.Columns[5].Visibility = Visibility.Hidden;
+                        dataGridViewBasic.Columns[1].Width = DataGridLength.Auto;
+                    }
+                }
+                else
+                {
+                    throw new Exception(APIClient.GetError(response));
                 }
             }
             catch (Exception ex)
@@ -53,43 +49,43 @@ namespace AbstractSanitaryWpfApp
 
         private void заказчикиToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var form = Container.Resolve<WindowCustomers>();
+            var form = new WindowCustomers();
             form.ShowDialog();
         }
 
         private void запчастиToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var form = Container.Resolve<WindowParts>();
+            var form = new WindowParts();
             form.ShowDialog();
         }
 
         private void услугиToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var form = Container.Resolve<WindowItems>();
+            var form = new WindowItems();
             form.ShowDialog();
         }
 
         private void складыToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var form = Container.Resolve<WindowWarehouses>();
+            var form = new WindowWarehouses();
             form.ShowDialog();
         }
 
         private void сантехникиToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var form = Container.Resolve<WindowPlumbers>();
+            var form = new WindowPlumbers();
             form.ShowDialog();
         }
 
         private void пополнитьСкладToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var form = Container.Resolve<WindowPutOnWarehouse>();
+            var form = new WindowPutOnWarehouse();
             form.ShowDialog();
         }
 
         private void buttonCreateOrdering_Click(object sender, EventArgs e)
         {
-            var form = Container.Resolve<WindowCreateOrdering>();
+            var form = new WindowCreateOrdering();
             form.ShowDialog();
             LoadData();
         }
@@ -98,8 +94,8 @@ namespace AbstractSanitaryWpfApp
         {
             if (dataGridViewBasic.SelectedItem != null)
             {
-                var form = Container.Resolve<WindowTakeOrderingInWork>();
-                form.ID = ((OrderingViewModel)dataGridViewBasic.SelectedItem).Id;
+                var form = new WindowTakeOrderingInWork();
+                form.Id = ((OrderingViewModel)dataGridViewBasic.SelectedItem).Id;
                 form.ShowDialog();
                 LoadData();
             }
@@ -112,8 +108,18 @@ namespace AbstractSanitaryWpfApp
                 int id = ((OrderingViewModel)dataGridViewBasic.SelectedItem).Id;
                 try
                 {
-                    service.FinishOrdering(id);
-                    LoadData();
+                    var response = APIClient.PostRequest("api/Basic/FinishOrdering", new OrderingBindingModel
+                    {
+                        Id = id
+                    });
+                    if (response.Result.IsSuccessStatusCode)
+                    {
+                        LoadData();
+                    }
+                    else
+                    {
+                        throw new Exception(APIClient.GetError(response));
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -129,8 +135,18 @@ namespace AbstractSanitaryWpfApp
                 int id = ((OrderingViewModel)dataGridViewBasic.SelectedItem).Id;
                 try
                 {
-                    service.PayOrdering(id);
-                    LoadData();
+                    var response = APIClient.PostRequest("api/Basic/PayOrdering", new OrderingBindingModel
+                    {
+                        Id = id
+                    });
+                    if (response.Result.IsSuccessStatusCode)
+                    {
+                        LoadData();
+                    }
+                    else
+                    {
+                        throw new Exception(APIClient.GetError(response));
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -153,15 +169,20 @@ namespace AbstractSanitaryWpfApp
 
             if (sfd.ShowDialog() == true)
             {
-
                 try
                 {
-
-                    reportService.SaveItemPrice(new ReportBindingModel
+                    var response = APIClient.PostRequest("api/Report/SaveItemPrice", new ReportBindingModel
                     {
                         FileName = sfd.FileName
                     });
-                    MessageBox.Show("Выполнено", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                    if (response.Result.IsSuccessStatusCode)
+                    {
+                        MessageBox.Show("Выполнено", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    else
+                    {
+                        throw new Exception(APIClient.GetError(response));
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -180,11 +201,18 @@ namespace AbstractSanitaryWpfApp
             {
                 try
                 {
-                    reportService.SaveWarehousesLoad(new ReportBindingModel
+                    var response = APIClient.PostRequest("api/Report/SaveWarehousesLoad", new ReportBindingModel
                     {
                         FileName = sfd.FileName
                     });
-                    MessageBox.Show("Выполнено", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                    if (response.Result.IsSuccessStatusCode)
+                    {
+                        MessageBox.Show("Выполнено", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    else
+                    {
+                        throw new Exception(APIClient.GetError(response));
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -195,7 +223,7 @@ namespace AbstractSanitaryWpfApp
 
         private void заказыКлиентовToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var form = Container.Resolve<WindowCustomerOrderings>();
+            var form = new WindowCustomerOrderings();
             form.ShowDialog();
         }
     }

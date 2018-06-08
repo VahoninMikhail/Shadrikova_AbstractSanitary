@@ -1,12 +1,11 @@
 ﻿using AbstractSanitaryService.BindingModels;
-using AbstractSanitaryService.Interfaces;
 using AbstractSanitaryService.ViewModels;
 using System;
 using System.Collections.Generic;
+using System.Net.Http;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using Unity;
-using Unity.Attributes;
 
 namespace AbstractSanitaryWpfApp
 {
@@ -15,22 +14,16 @@ namespace AbstractSanitaryWpfApp
     /// </summary>
     public partial class WindowItem : Window
     {
-        [Dependency]
-        public new IUnityContainer Container { get; set; }
-
-        public int ID { set { id = value; } }
-
-        private readonly IItemService service;
+        public int Id { set { id = value; } }
 
         private int? id;
 
         private List<ItemPartViewModel> itemParts;
 
-        public WindowItem(IItemService service)
+        public WindowItem()
         {
             InitializeComponent();
             Loaded += WindowItem_Load;
-            this.service = service;
         }
 
         private void WindowItem_Load(object sender, EventArgs e)
@@ -39,13 +32,18 @@ namespace AbstractSanitaryWpfApp
             {
                 try
                 {
-                    ItemViewModel view = service.GetElement(id.Value);
-                    if (view != null)
+                    var response = APIClient.GetRequest("api/Item/Get/" + id.Value);
+                    if (response.Result.IsSuccessStatusCode)
                     {
-                        textBoxName.Text = view.ItemName;
-                        textBoxPrice.Text = view.Price.ToString();
-                        itemParts = view.ItemParts;
+                        var item = APIClient.GetElement<ItemViewModel>(response);
+                        textBoxName.Text = item.ItemName;
+                        textBoxPrice.Text = item.Price.ToString();
+                        itemParts = item.ItemParts;
                         LoadData();
+                    }
+                    else
+                    {
+                        throw new Exception(APIClient.GetError(response));
                     }
                 }
                 catch (Exception ex)
@@ -79,13 +77,13 @@ namespace AbstractSanitaryWpfApp
 
         private void buttonAdd_Click(object sender, EventArgs e)
         {
-            var form = Container.Resolve<WindowItemPart>();
+            var form = new WindowItemPart();
             if (form.ShowDialog() == true)
             {
                 if (form.Model != null)
                 {
                     if (id.HasValue)
-                        form.Model.ItemId = id.Value;
+                    form.Model.ItemId = id.Value;
                     itemParts.Add(form.Model);
                 }
                 LoadData();
@@ -96,7 +94,7 @@ namespace AbstractSanitaryWpfApp
         {
             if (dataGridViewItem.SelectedItem != null)
             {
-                var form = Container.Resolve<WindowItemPart>();
+                var form = new WindowItemPart();
                 form.Model = itemParts[dataGridViewItem.SelectedIndex];
                 if (form.ShowDialog() == true)
                 {
@@ -110,8 +108,7 @@ namespace AbstractSanitaryWpfApp
         {
             if (dataGridViewItem.SelectedItem != null)
             {
-                if (MessageBox.Show("Удалить запись?", "Внимание",
-                    MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+                if (MessageBox.Show("Удалить запись?", "Внимание", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
                 {
                     try
                     {
@@ -161,9 +158,10 @@ namespace AbstractSanitaryWpfApp
                         Count = itemParts[i].Count
                     });
                 }
+                Task<HttpResponseMessage> response;
                 if (id.HasValue)
                 {
-                    service.UpdElement(new ItemBindingModel
+                    response = APIClient.PostRequest("api/Item/UpdElement", new ItemBindingModel
                     {
                         Id = id.Value,
                         ItemName = textBoxName.Text,
@@ -173,16 +171,23 @@ namespace AbstractSanitaryWpfApp
                 }
                 else
                 {
-                    service.AddElement(new ItemBindingModel
+                    response = APIClient.PostRequest("api/Item/AddElement", new ItemBindingModel
                     {
                         ItemName = textBoxName.Text,
                         Price = Convert.ToInt32(textBoxPrice.Text),
                         ItemParts = itemPartBM
                     });
                 }
-                MessageBox.Show("Сохранение прошло успешно", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
-                DialogResult = true;
-                Close();
+                if (response.Result.IsSuccessStatusCode)
+                {
+                    MessageBox.Show("Сохранение прошло успешно", "Сообщение", MessageBoxButton.OK, MessageBoxImage.Information);
+                    DialogResult = true;
+                    Close();
+                }
+                else
+                {
+                    throw new Exception(APIClient.GetError(response));
+                }
             }
             catch (Exception ex)
             {
