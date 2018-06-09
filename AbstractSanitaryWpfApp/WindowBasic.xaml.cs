@@ -3,6 +3,7 @@ using AbstractSanitaryService.ViewModels;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -22,31 +23,27 @@ namespace AbstractSanitaryWpfApp
         {
             try
             {
-                var response = APIClient.GetRequest("api/Basic/GetList");
-                if (response.Result.IsSuccessStatusCode)
+                List<OrderingViewModel> list = Task.Run(() => APIClient.GetRequestData<List<OrderingViewModel>>("api/Basic/GetList")).Result;
+                if (list != null)
                 {
-                    List<OrderingViewModel> list = APIClient.GetElement<List<OrderingViewModel>>(response);
-                    if (list != null)
-                    {
-                        dataGridViewBasic.ItemsSource = list;
-                        dataGridViewBasic.Columns[0].Visibility = Visibility.Hidden;
-                        dataGridViewBasic.Columns[1].Visibility = Visibility.Hidden;
-                        dataGridViewBasic.Columns[3].Visibility = Visibility.Hidden;
-                        dataGridViewBasic.Columns[5].Visibility = Visibility.Hidden;
-                        dataGridViewBasic.Columns[1].Width = DataGridLength.Auto;
-                    }
-                }
-                else
-                {
-                    throw new Exception(APIClient.GetError(response));
+                    dataGridViewBasic.ItemsSource = list;
+                    dataGridViewBasic.Columns[0].Visibility = Visibility.Hidden;
+                    dataGridViewBasic.Columns[1].Visibility = Visibility.Hidden;
+                    dataGridViewBasic.Columns[3].Visibility = Visibility.Hidden;
+                    dataGridViewBasic.Columns[5].Visibility = Visibility.Hidden;
+                    dataGridViewBasic.Columns[1].Width = DataGridLength.Auto;
                 }
             }
             catch (Exception ex)
             {
+                while (ex.InnerException != null)
+                {
+                    ex = ex.InnerException;
+                }
                 MessageBox.Show(ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-
+        
         private void заказчикиToolStripMenuItem_Click(object sender, EventArgs e)
         {
             var form = new WindowCustomers();
@@ -106,25 +103,23 @@ namespace AbstractSanitaryWpfApp
             if (dataGridViewBasic.SelectedItem != null)
             {
                 int id = ((OrderingViewModel)dataGridViewBasic.SelectedItem).Id;
-                try
+                Task task = Task.Run(() => APIClient.PostRequestData("api/Basic/FinishOrdering", new OrderingBindingModel
                 {
-                    var response = APIClient.PostRequest("api/Basic/FinishOrdering", new OrderingBindingModel
-                    {
-                        Id = id
-                    });
-                    if (response.Result.IsSuccessStatusCode)
-                    {
-                        LoadData();
-                    }
-                    else
-                    {
-                        throw new Exception(APIClient.GetError(response));
-                    }
-                }
-                catch (Exception ex)
+                    Id = id
+                }));
+
+                task.ContinueWith((prevTask) => MessageBox.Show("Статус заказа изменен. Обновите список", "Успех", MessageBoxButton.OK, MessageBoxImage.Information),
+                TaskContinuationOptions.OnlyOnRanToCompletion);
+
+                task.ContinueWith((prevTask) =>
                 {
+                    var ex = (Exception)prevTask.Exception;
+                    while (ex.InnerException != null)
+                    {
+                        ex = ex.InnerException;
+                    }
                     MessageBox.Show(ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                }, TaskContinuationOptions.OnlyOnFaulted);
             }
         }
 
@@ -133,25 +128,23 @@ namespace AbstractSanitaryWpfApp
             if (dataGridViewBasic.SelectedItem != null)
             {
                 int id = ((OrderingViewModel)dataGridViewBasic.SelectedItem).Id;
-                try
+                Task task = Task.Run(() => APIClient.PostRequestData("api/Basic/PayOrdering", new OrderingBindingModel
                 {
-                    var response = APIClient.PostRequest("api/Basic/PayOrdering", new OrderingBindingModel
-                    {
-                        Id = id
-                    });
-                    if (response.Result.IsSuccessStatusCode)
-                    {
-                        LoadData();
-                    }
-                    else
-                    {
-                        throw new Exception(APIClient.GetError(response));
-                    }
-                }
-                catch (Exception ex)
+                    Id = id
+                }));
+
+                task.ContinueWith((prevTask) => MessageBox.Show("Статус заказа изменен. Обновите список", "Успех", MessageBoxButton.OK, MessageBoxImage.Information),
+                TaskContinuationOptions.OnlyOnRanToCompletion);
+
+                task.ContinueWith((prevTask) =>
                 {
+                    var ex = (Exception)prevTask.Exception;
+                    while (ex.InnerException != null)
+                    {
+                        ex = ex.InnerException;
+                    }
                     MessageBox.Show(ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                }, TaskContinuationOptions.OnlyOnFaulted);
             }
         }
 
@@ -169,25 +162,24 @@ namespace AbstractSanitaryWpfApp
 
             if (sfd.ShowDialog() == true)
             {
-                try
+                string fileName = sfd.FileName;
+                Task task = Task.Run(() => APIClient.PostRequestData("api/Report/SaveItemPrice", new ReportBindingModel
                 {
-                    var response = APIClient.PostRequest("api/Report/SaveItemPrice", new ReportBindingModel
-                    {
-                        FileName = sfd.FileName
-                    });
-                    if (response.Result.IsSuccessStatusCode)
-                    {
-                        MessageBox.Show("Выполнено", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
-                    }
-                    else
-                    {
-                        throw new Exception(APIClient.GetError(response));
-                    }
-                }
-                catch (Exception ex)
+                    FileName = fileName
+                }));
+
+                task.ContinueWith((prevTask) => MessageBox.Show("Выполнено", "Успех", MessageBoxButton.OK, MessageBoxImage.Information),
+                TaskContinuationOptions.OnlyOnRanToCompletion);
+
+                task.ContinueWith((prevTask) =>
                 {
+                    var ex = (Exception)prevTask.Exception;
+                    while (ex.InnerException != null)
+                    {
+                        ex = ex.InnerException;
+                    }
                     MessageBox.Show(ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                }, TaskContinuationOptions.OnlyOnFaulted);
             }
         }
 
@@ -199,25 +191,24 @@ namespace AbstractSanitaryWpfApp
             };
             if (sfd.ShowDialog() == true)
             {
-                try
+                string fileName = sfd.FileName;
+                Task task = Task.Run(() => APIClient.PostRequestData("api/Report/SaveWarehousesLoad", new ReportBindingModel
                 {
-                    var response = APIClient.PostRequest("api/Report/SaveWarehousesLoad", new ReportBindingModel
-                    {
-                        FileName = sfd.FileName
-                    });
-                    if (response.Result.IsSuccessStatusCode)
-                    {
-                        MessageBox.Show("Выполнено", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
-                    }
-                    else
-                    {
-                        throw new Exception(APIClient.GetError(response));
-                    }
-                }
-                catch (Exception ex)
+                    FileName = fileName
+                }));
+
+                task.ContinueWith((prevTask) => MessageBox.Show("Выполнено", "Успех", MessageBoxButton.OK, MessageBoxImage.Information),
+                TaskContinuationOptions.OnlyOnRanToCompletion);
+
+                task.ContinueWith((prevTask) =>
                 {
+                    var ex = (Exception)prevTask.Exception;
+                    while (ex.InnerException != null)
+                    {
+                        ex = ex.InnerException;
+                    }
                     MessageBox.Show(ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                }, TaskContinuationOptions.OnlyOnFaulted);
             }
         }
 

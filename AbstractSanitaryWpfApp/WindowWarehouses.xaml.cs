@@ -2,6 +2,7 @@
 using AbstractSanitaryService.ViewModels;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -27,20 +28,20 @@ namespace AbstractSanitaryWpfApp
         {
             try
             {
-                var response = APIClient.GetRequest("api/Warehouse/GetList");
-                if (response.Result.IsSuccessStatusCode)
+                List<WarehouseViewModel> list = Task.Run(() => APIClient.GetRequestData<List<WarehouseViewModel>>("api/Warehouse/GetList")).Result;
+                if (list != null)
                 {
-                    List<WarehouseViewModel> list = APIClient.GetElement<List<WarehouseViewModel>>(response);
-                    if (list != null)
-                    {
-                        dataGridViewWarehouses.ItemsSource = list;
-                        dataGridViewWarehouses.Columns[0].Visibility = Visibility.Hidden;
-                        dataGridViewWarehouses.Columns[1].Width = DataGridLength.Auto;
-                    }
+                    dataGridViewWarehouses.ItemsSource = list;
+                    dataGridViewWarehouses.Columns[0].Visibility = Visibility.Hidden;
+                    dataGridViewWarehouses.Columns[1].Width = DataGridLength.Auto;
                 }
             }
             catch (Exception ex)
             {
+                while (ex.InnerException != null)
+                {
+                    ex = ex.InnerException;
+                }
                 MessageBox.Show(ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -72,19 +73,20 @@ namespace AbstractSanitaryWpfApp
                 if (MessageBox.Show("Удалить запись?", "Внимание", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
                 {
                     int id = ((WarehouseViewModel)dataGridViewWarehouses.SelectedItem).Id;
-                    try
+                    Task task = Task.Run(() => APIClient.PostRequestData("api/Warehouse/DelElement", new CustomerBindingModel { Id = id }));
+
+                    task.ContinueWith((prevTask) => MessageBox.Show("Запись удалена. Обновите список", "Успех", MessageBoxButton.OK, MessageBoxImage.Information),
+                    TaskContinuationOptions.OnlyOnRanToCompletion);
+
+                    task.ContinueWith((prevTask) =>
                     {
-                        var response = APIClient.PostRequest("api/Warehouse/DelElement", new CustomerBindingModel { Id = id });
-                        if (!response.Result.IsSuccessStatusCode)
+                        var ex = (Exception)prevTask.Exception;
+                        while (ex.InnerException != null)
                         {
-                            throw new Exception(APIClient.GetError(response));
+                            ex = ex.InnerException;
                         }
-                    }
-                    catch (Exception ex)
-                    {
                         MessageBox.Show(ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-                    }
-                    LoadData();
+                    }, TaskContinuationOptions.OnlyOnFaulted);
                 }
             }
         }

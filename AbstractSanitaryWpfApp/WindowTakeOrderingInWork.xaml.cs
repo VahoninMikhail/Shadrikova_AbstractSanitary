@@ -2,6 +2,7 @@
 using AbstractSanitaryService.ViewModels;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.Windows;
 
 namespace AbstractSanitaryWpfApp
@@ -30,26 +31,21 @@ namespace AbstractSanitaryWpfApp
                     MessageBox.Show("Не указан заказ", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                     Close();
                 }
-                var response = APIClient.GetRequest("api/Plumber/GetList");
-                if (response.Result.IsSuccessStatusCode)
+                List<PlumberViewModel> list = Task.Run(() => APIClient.GetRequestData<List<PlumberViewModel>>("api/Plumber/GetList")).Result;
+                if (list != null)
                 {
-                    List<PlumberViewModel> list = APIClient.GetElement<List<PlumberViewModel>>(response);
-                    if (list != null)
-                    {
-                        comboBoxPlumber.DisplayMemberPath = "PlumberFIO";
-                        comboBoxPlumber.SelectedValuePath = "Id";
-                        comboBoxPlumber.ItemsSource = list;
-                        comboBoxPlumber.SelectedItem = null;
-
-                    }
-                }
-                else
-                {
-                    throw new Exception(APIClient.GetError(response));
+                    comboBoxPlumber.DisplayMemberPath = "PlumberFIO";
+                    comboBoxPlumber.SelectedValuePath = "Id";
+                    comboBoxPlumber.ItemsSource = list;
+                    comboBoxPlumber.SelectedItem = null;
                 }
             }
             catch (Exception ex)
             {
+                while (ex.InnerException != null)
+                {
+                    ex = ex.InnerException;
+                }
                 MessageBox.Show(ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -63,24 +59,32 @@ namespace AbstractSanitaryWpfApp
             }
             try
             {
-                var response = APIClient.PostRequest("api/Basic/TakeOrderingInWork", new OrderingBindingModel
+                int plumberId = Convert.ToInt32(comboBoxPlumber.SelectedValue);
+                Task task = Task.Run(() => APIClient.PostRequestData("api/Basic/TakeOrderingInWork", new OrderingBindingModel
                 {
                     Id = id.Value,
-                    PlumberId = ((PlumberViewModel)comboBoxPlumber.SelectedItem).Id,
-                });
-                if (response.Result.IsSuccessStatusCode)
+                    PlumberId = plumberId
+                }));
+                task.ContinueWith((prevTask) => MessageBox.Show("Заказ передан в работу. Обновите список", "Сообщение", MessageBoxButton.OK, MessageBoxImage.Information),
+                    TaskContinuationOptions.OnlyOnRanToCompletion);
+                task.ContinueWith((prevTask) =>
                 {
-                    MessageBox.Show("Сохранение прошло успешно", "Сообщение", MessageBoxButton.OK, MessageBoxImage.Information);
-                    DialogResult = true;
-                    Close();
-                }
-                else
-                {
-                    throw new Exception(APIClient.GetError(response));
-                }
+                    var ex = (Exception)prevTask.Exception;
+                    while (ex.InnerException != null)
+                    {
+                        ex = ex.InnerException;
+                    }
+                    MessageBox.Show(ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                }, TaskContinuationOptions.OnlyOnFaulted);
+
+                Close();
             }
             catch (Exception ex)
             {
+                while (ex.InnerException != null)
+                {
+                    ex = ex.InnerException;
+                }
                 MessageBox.Show(ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }

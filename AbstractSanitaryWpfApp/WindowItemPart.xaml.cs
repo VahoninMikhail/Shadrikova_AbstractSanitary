@@ -1,6 +1,7 @@
 ﻿using AbstractSanitaryService.ViewModels;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.Windows;
 
 namespace AbstractSanitaryWpfApp
@@ -24,21 +25,17 @@ namespace AbstractSanitaryWpfApp
         {
             try
             {
-                var response = APIClient.GetRequest("api/Part/GetList");
-                if (response.Result.IsSuccessStatusCode)
-                {
-                    comboBoxPart.DisplayMemberPath = "PartName";
-                    comboBoxPart.SelectedValuePath = "Id";
-                    comboBoxPart.ItemsSource = APIClient.GetElement<List<PartViewModel>>(response);
-                    comboBoxPart.SelectedItem = null;
-                }
-                else
-                {
-                    throw new Exception(APIClient.GetError(response));
-                }
+                comboBoxPart.DisplayMemberPath = "PartName";
+                comboBoxPart.SelectedValuePath = "Id";
+                comboBoxPart.ItemsSource = Task.Run(() => APIClient.GetRequestData<List<PartViewModel>>("api/Part/GetList")).Result;
+                comboBoxPart.SelectedItem = null;
             }
             catch (Exception ex)
             {
+                while (ex.InnerException != null)
+                {
+                    ex = ex.InnerException;
+                }
                 MessageBox.Show(ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
 
