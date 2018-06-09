@@ -2,7 +2,6 @@
 using AbstractSanitaryService.ViewModels;
 using System;
 using System.Collections.Generic;
-using System.Net.Http;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -32,22 +31,18 @@ namespace AbstractSanitaryWpfApp
             {
                 try
                 {
-                    var response = APIClient.GetRequest("api/Item/Get/" + id.Value);
-                    if (response.Result.IsSuccessStatusCode)
-                    {
-                        var item = APIClient.GetElement<ItemViewModel>(response);
-                        textBoxName.Text = item.ItemName;
-                        textBoxPrice.Text = item.Price.ToString();
-                        itemParts = item.ItemParts;
-                        LoadData();
-                    }
-                    else
-                    {
-                        throw new Exception(APIClient.GetError(response));
-                    }
+                    var item = Task.Run(() => APIClient.GetRequestData<ItemViewModel>("api/Item/Get/" + id.Value)).Result;
+                    textBoxName.Text = item.ItemName;
+                    textBoxPrice.Text = item.Price.ToString();
+                    itemParts = item.ItemParts;
+                    LoadData();
                 }
                 catch (Exception ex)
                 {
+                    while (ex.InnerException != null)
+                    {
+                        ex = ex.InnerException;
+                    }
                     MessageBox.Show(ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
@@ -145,54 +140,53 @@ namespace AbstractSanitaryWpfApp
                 MessageBox.Show("Выберите запчасти", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
-            try
+            List<ItemPartBindingModel> itemPartBM = new List<ItemPartBindingModel>();
+            for (int i = 0; i < itemParts.Count; ++i)
             {
-                List<ItemPartBindingModel> itemPartBM = new List<ItemPartBindingModel>();
-                for (int i = 0; i < itemParts.Count; ++i)
+                itemPartBM.Add(new ItemPartBindingModel
                 {
-                    itemPartBM.Add(new ItemPartBindingModel
-                    {
-                        Id = itemParts[i].Id,
-                        ItemId = itemParts[i].ItemId,
-                        PartId = itemParts[i].PartId,
-                        Count = itemParts[i].Count
-                    });
-                }
-                Task<HttpResponseMessage> response;
-                if (id.HasValue)
-                {
-                    response = APIClient.PostRequest("api/Item/UpdElement", new ItemBindingModel
-                    {
-                        Id = id.Value,
-                        ItemName = textBoxName.Text,
-                        Price = Convert.ToInt32(textBoxPrice.Text),
-                        ItemParts = itemPartBM
-                    });
-                }
-                else
-                {
-                    response = APIClient.PostRequest("api/Item/AddElement", new ItemBindingModel
-                    {
-                        ItemName = textBoxName.Text,
-                        Price = Convert.ToInt32(textBoxPrice.Text),
-                        ItemParts = itemPartBM
-                    });
-                }
-                if (response.Result.IsSuccessStatusCode)
-                {
-                    MessageBox.Show("Сохранение прошло успешно", "Сообщение", MessageBoxButton.OK, MessageBoxImage.Information);
-                    DialogResult = true;
-                    Close();
-                }
-                else
-                {
-                    throw new Exception(APIClient.GetError(response));
-                }
+                    Id = itemParts[i].Id,
+                    ItemId = itemParts[i].ItemId,
+                    PartId = itemParts[i].PartId,
+                    Count = itemParts[i].Count
+                });
             }
-            catch (Exception ex)
+            string name = textBoxName.Text;
+            int price = Convert.ToInt32(textBoxPrice.Text);
+            Task task;
+            if (id.HasValue)
             {
+                task = Task.Run(() => APIClient.PostRequestData("api/Item/UpdElement", new ItemBindingModel
+                {
+                    Id = id.Value,
+                    ItemName = name,
+                    Price = price,
+                    ItemParts = itemPartBM
+                }));
+            }
+            else
+            {
+                task = Task.Run(() => APIClient.PostRequestData("api/Item/AddElement", new ItemBindingModel
+                {
+                    ItemName = name,
+                    Price = price,
+                    ItemParts = itemPartBM
+                }));
+            }
+
+            task.ContinueWith((prevTask) => MessageBox.Show("Сохранение прошло успешно. Обновите список", "Сообщение", MessageBoxButton.OK, MessageBoxImage.Information),
+                TaskContinuationOptions.OnlyOnRanToCompletion);
+            task.ContinueWith((prevTask) =>
+            {
+                var ex = (Exception)prevTask.Exception;
+                while (ex.InnerException != null)
+                {
+                    ex = ex.InnerException;
+                }
                 MessageBox.Show(ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            }, TaskContinuationOptions.OnlyOnFaulted);
+
+            Close();
         }
 
         private void buttonCancel_Click(object sender, EventArgs e)
